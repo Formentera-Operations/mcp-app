@@ -232,12 +232,17 @@ function initMap(): void {
   const container = document.getElementById('map');
   if (!container || map) return;
 
-  map = new maplibregl.Map({
-    container: 'map',
-    style: 'https://tiles.openfreemap.org/styles/liberty',
-    center: [-99.5, 32.0], // Texas center
-    zoom: 5,
-  });
+  try {
+    map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://tiles.openfreemap.org/styles/liberty',
+      center: [-99.5, 32.0], // Texas center
+      zoom: 5,
+    });
+  } catch (err) {
+    showError(`Map init failed: ${String(err)}`);
+    return;
+  }
 
   map.addControl(new maplibregl.NavigationControl());
 
@@ -248,6 +253,24 @@ function initMap(): void {
       pendingData = null;
     }
   });
+
+  // Surface tile/style fetch errors
+  map.on('error', (e) => {
+    const msg = (e as { error?: { message?: string } }).error?.message ?? String(e);
+    console.error('[Well Map] MapLibre error:', msg);
+  });
+
+  // Timeout: if tiles don't load in 10s, render wells on whatever we have
+  setTimeout(() => {
+    if (!mapLoaded && map) {
+      console.warn('[Well Map] Map load timed out — rendering wells without base tiles');
+      mapLoaded = true;
+      if (pendingData) {
+        renderWells(pendingData);
+        pendingData = null;
+      }
+    }
+  }, 10_000);
 }
 
 // --- Initialize ---
