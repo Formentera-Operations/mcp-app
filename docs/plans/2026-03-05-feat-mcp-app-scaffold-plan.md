@@ -719,7 +719,8 @@ const DIST_DIR = import.meta.filename.endsWith('.ts')
   : import.meta.dirname;
 
 async function readViewHtml(filename: string): Promise<string> {
-  return fs.readFile(path.join(DIST_DIR, filename), 'utf-8');
+  // Views build to dist/views/ since input is views/*.html
+  return fs.readFile(path.join(DIST_DIR, 'views', filename), 'utf-8');
 }
 
 export function createServer(): McpServer {
@@ -1317,7 +1318,7 @@ function setupDataZoomContext(app: ReturnType<typeof createApp>): void {
       const wells = [...new Set(currentData.map((d) => d.well_name))];
 
       app.updateModelContext({
-        context: [
+        content: [
           {
             type: 'text',
             text: JSON.stringify({
