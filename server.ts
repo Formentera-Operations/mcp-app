@@ -205,36 +205,34 @@ export function createServer(): McpServer {
     {
       title: 'Show Lease Operating Statement',
       description:
-        'Render a hierarchical Lease Operating Statement (Net Field LOS) with collapsible categories, monthly columns, and totals. Standard O&G financial statement showing revenue, taxes, LOE, and net operating income.',
+        'Render a hierarchical Lease Operating Statement (Net Field LOS) with collapsible categories, monthly columns, and totals. Pass flat row data — the view groups by category/line_item and computes subtotals automatically. Revenue is shown positive (view flips sign), expenses shown positive. Standard O&G categories: Revenue, Production & Ad Valorem Taxes, Lease Operating Expenses, G&A, Workover Expenses, P & A Expenses, Other Income.',
       inputSchema: {
-        title: z.string().describe('Statement title (e.g., "Net Field LOS")'),
+        title: z.string().describe('Statement title (e.g., "Net Field LOS — FP Drake LLC (2025)")'),
         entity: z.string().optional().describe('Entity or property name'),
-        periods: z.array(z.string()).describe('Column period labels (e.g., ["Jan 2025", "Feb 2025"])'),
-        sections: z.array(
+        data: z.array(
           z.object({
-            category: z.string().describe('Section category (e.g., "Revenue", "Taxes", "LOE")'),
-            subtotal: z.record(z.number().nullable()).describe('Subtotal values keyed by period'),
-            items: z.array(
-              z.object({
-                label: z.string().describe('Line item label'),
-                values: z.record(z.number().nullable()).describe('Values keyed by period'),
-              }),
-            ).describe('Line items in this section'),
+            period: z.string().describe('Period label or ISO date (e.g., "Jan 2025" or "2025-01-01")'),
+            category: z.string().describe('LOS category (e.g., "Revenue", "Lease Operating Expenses", "G&A")'),
+            line_item: z.string().describe('Line item / section name (e.g., "Gas Revenue", "Fuel & Power")'),
+            amount: z.number().describe('Amount in natural GL signs (revenue as negative credits, expenses as positive debits)'),
           }),
-        ).describe('LOS sections (categories with line items)'),
-        grand_total: z.record(z.number().nullable()).optional().describe('Grand total (net operating income) keyed by period'),
+        ).describe('Flat array of LOS line items — view handles grouping, subtotals, and sign conventions'),
+        category_order: z.array(z.string()).optional().describe('Display order for categories. Default: Revenue, Taxes, LOE, G&A, Workover, P&A, Other Income'),
+        grand_total_label: z.string().optional().describe('Label for grand total row. Default: "Net Operating Income"'),
       },
       _meta: {
         ui: { resourceUri: losTableUri },
       },
     },
-    async ({ title, entity, periods, sections, grand_total }): Promise<CallToolResult> => {
-      const totalItems = sections.reduce((s, sec) => s + sec.items.length, 0);
-      const summary = `LOS: "${title}"${entity ? ` — ${entity}` : ''}, ${sections.length} sections, ${totalItems} line items, ${periods.length} periods`;
+    async ({ title, entity, data, category_order, grand_total_label }): Promise<CallToolResult> => {
+      const categories = [...new Set(data.map((d) => d.category))];
+      const periods = [...new Set(data.map((d) => d.period))];
+      const lineItems = [...new Set(data.map((d) => d.line_item))];
+      const summary = `LOS: "${title}"${entity ? ` — ${entity}` : ''}, ${categories.length} categories, ${lineItems.length} line items, ${periods.length} periods`;
 
       return {
         content: [{ type: 'text', text: summary }],
-        structuredContent: { title, entity, periods, sections, grand_total },
+        structuredContent: { title, entity, data, category_order, grand_total_label },
       };
     },
   );

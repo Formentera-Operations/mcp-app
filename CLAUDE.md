@@ -215,8 +215,10 @@ When the user interacts with a view (zooms to a date range, clicks a well, appli
 
 ### 6. `show-los-table` -- Lease Operating Statement
 - **Resource**: `ui://los-table/mcp-app.html`
-- **Input**: `{ title, ?entity, periods: string[], sections: [{ category, subtotal, items: [{ label, values }] }], ?grand_total }`
-- **Features**: Hierarchical financial statement with collapsible category rows, monthly columns + computed total column, subtotal rows, grand total (net operating income) row, negative values in red
+- **Input**: `{ title, ?entity, data: [{ period, category, line_item, amount }], ?category_order, ?grand_total_label }`
+- **Features**: Accepts flat row data (close to SQL output) — view auto-groups by category/line_item, computes subtotals and NOI. Collapsible category rows, monthly columns + computed total column, sign convention handling (revenue/income flipped to positive, expenses kept positive). Also supports legacy nested `sections` format.
+- **Sign conventions**: Raw GL signs (revenue as negative credits, expenses as positive debits). View flips revenue/income to positive for display. NOI computed automatically.
+- **Default category order**: Revenue, Production & Ad Valorem Taxes, Lease Operating Expenses, G&A, Workover Expenses, P & A Expenses, Other Income
 - **Colors**: Category rows=Off-white, subtotals=Navy top-border, grand total=Navy bg/white text, negatives=#C00000
 - **CSP**: None needed (fully bundled)
 
