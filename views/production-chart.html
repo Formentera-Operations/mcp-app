@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Production Chart</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+      background: #FFFFFF;
+      color: #001F45;
+      overflow: hidden;
+    }
+    .main {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      border-radius: var(--border-radius-lg, 8px);
+      overflow: hidden;
+    }
+    .main.fullscreen { border-radius: 0; }
+
+    .kpi-strip {
+      display: flex;
+      gap: 16px;
+      padding: 8px 16px;
+      background: #F2F2F2;
+      border-bottom: 1px solid #E6E6E6;
+      flex-shrink: 0;
+    }
+    .kpi { text-align: center; }
+    .kpi-value { font-size: 18px; font-weight: bold; color: #001F45; }
+    .kpi-label { font-size: 11px; color: #7F7F7F; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      padding: 4px 16px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .toolbar button {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      padding: 3px 10px;
+      border: 1px solid #E6E6E6;
+      border-radius: 4px;
+      background: #FFFFFF;
+      color: #001F45;
+      cursor: pointer;
+    }
+    .toolbar button.active { background: #001F45; color: #FFFFFF; }
+    .toolbar button:hover:not(.active) { background: #F2F2F2; }
+
+    #chart { flex: 1; min-height: 0; }
+
+    .fullscreen-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 10;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #E6E6E6;
+      border-radius: 4px;
+      padding: 4px;
+      cursor: pointer;
+      line-height: 0;
+      display: none;
+    }
+
+    .error-msg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: #C00000;
+      font-size: 14px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: #7F7F7F;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="main">
+    <div class="loading" id="loading">Loading chart data...</div>
+    <div class="kpi-strip" id="kpi-strip" style="display:none"></div>
+    <div class="toolbar" id="toolbar" style="display:none">
+      <button id="btn-linear" class="active">Linear</button>
+      <button id="btn-log">Log</button>
+      <span style="flex:1"></span>
+      <button id="btn-oil" class="active" style="color:#00B050">Oil</button>
+      <button id="btn-gas" class="active" style="color:#FF0000">Gas</button>
+      <button id="btn-water" class="active" style="color:#336699">Water</button>
+    </div>
+    <div id="chart"></div>
+    <button class="fullscreen-btn" id="fullscreen-btn" title="Toggle fullscreen">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#001F45" stroke-width="1.5">
+        <polyline points="10,2 14,2 14,6"/><polyline points="6,14 2,14 2,10"/>
+        <line x1="14" y1="2" x2="10" y2="6"/><line x1="2" y1="14" x2="6" y2="10"/>
+      </svg>
+    </button>
+    <div class="error-msg" id="error-msg" style="display:none"></div>
+  </div>
+  <script type="module" src="/src/production-chart.ts"></script>
+</body>
+</html>
