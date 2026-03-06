@@ -185,12 +185,14 @@ function renderWells(wells: WellPoint[], fitBounds = true): void {
       type: 'circle',
       source: 'wells',
       paint: {
-        'circle-radius': 6,
+        'circle-radius': 10,
         'circle-color': ['get', 'color'],
-        'circle-stroke-width': 1.5,
+        'circle-stroke-width': 2,
         'circle-stroke-color': FP_NAVY,
       },
     });
+
+    console.log(`[Well Map] Added ${wells.length} wells to layer`);
 
     // Click handler for popups
     map.on('click', 'wells-circle', (e: unknown) => {
@@ -223,6 +225,7 @@ function renderWells(wells: WellPoint[], fitBounds = true): void {
       bounds.extend([w.lng, w.lat]);
     }
     if (!bounds.isEmpty()) {
+      console.log('[Well Map] fitBounds:', JSON.stringify(bounds));
       map.fitBounds(bounds, { padding: 50, maxZoom: 12 });
     }
   }
