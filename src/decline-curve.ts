@@ -203,11 +203,12 @@ function buildChart(data: DeclineData): void {
   const dates = sorted.map((d) => d.date);
   const rates = sorted.map((d) => d.oil_bbl);
 
+  // Filter zeros for log axis safety (log(0) is undefined, ECharts #17725)
   const series: (LineSeriesOption | ScatterSeriesOption)[] = [
     {
       name: 'Actual',
       type: 'scatter',
-      data: sorted.map((d) => [d.date, d.oil_bbl]),
+      data: sorted.filter((d) => d.oil_bbl > 0).map((d) => [d.date, d.oil_bbl]),
       symbolSize: 5,
       itemStyle: { color: FP_NAVY },
     },
@@ -289,6 +290,7 @@ function buildChart(data: DeclineData): void {
     yAxis: {
       type: 'log',
       name: 'BBL/D',
+      min: 1, // Prevent log(0); acts as visual economic limit
       nameTextStyle: { color: FP_GRAY, fontSize: 11 },
       axisLabel: { color: FP_GRAY, fontSize: 11 },
       axisLine: { lineStyle: { color: FP_LIGHT_GRAY } },
