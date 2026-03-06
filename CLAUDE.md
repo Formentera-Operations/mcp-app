@@ -22,9 +22,9 @@ Repo: https://github.com/Formentera-Operations/mcp-app.git
 | Purpose | Library | Why |
 |---------|---------|-----|
 | Charts (all) | **Apache ECharts** | Canvas renderer handles 100K+ points, declarative config, dual Y-axis native, DataZoom built-in, ~400KB tree-shaken. NOT Plotly (3MB, WebGL context limits). NOT D3 (too low-level). NOT Chart.js (no dual axis, limited). |
-| Maps | **MapLibre GL JS** | Open-source, WebGL vector tiles, no API key required, smooth zoom. NOT CesiumJS (3D globe overkill for 2D well plots). NOT Leaflet (raster-only, poor scaling). |
-| Map tiles | **OpenFreeMap** (`tiles.openfreemap.org/styles/liberty`) | Free, no key, vector tiles. Fallback: `demotiles.maplibre.org/style.json` |
-| Bundling | **vite-plugin-singlefile** | Inlines all JS/CSS into one HTML file so the MCP resource is a single string. No CDN needed for chart tools. |
+| Maps | **MapLibre GL JS** | Open-source, bundled via npm (~1.5MB in single-file output), DOM-based markers for sandbox compatibility. NOT CesiumJS (3D globe overkill). NOT Leaflet (raster-only). |
+| Map tiles | **OSM raster tiles** (`tile.openstreetmap.org`) | Inline style with raster source — no remote style JSON fetch needed. Gray background fallback if tiles blocked by CSP. |
+| Bundling | **vite-plugin-singlefile** | Inlines all JS/CSS into one HTML file so the MCP resource is a single string. MapLibre bundled via npm (not CDN — CDN blocked in sandbox). |
 
 ## Brand system (from fp-brand-2026)
 
@@ -156,7 +156,7 @@ Use `ontoolinputpartial` so charts render progressively as Claude generates larg
 Every view must include a fullscreen toggle button. Use `app.requestDisplayMode("fullscreen")`. Remove border-radius in fullscreen state. Check `ctx.availableDisplayModes` before showing the button.
 
 ### Visibility-based pause
-Use `IntersectionObserver` to pause ECharts animations and MapLibre WebGL rendering when scrolled out of view. Especially important for the map (WebGL context is expensive).
+Use `IntersectionObserver` to pause ECharts animations when scrolled out of view. For the map, call `map.resize()` on resume.
 
 ### Text fallback
 Every tool MUST return a `content` array with a text summary alongside `structuredContent`. Non-UI hosts (terminals, basic MCP clients) should still get useful output, e.g., "Production chart: 3 wells, Jan-Dec 2024, peak oil 450 BBL/D".
@@ -184,11 +184,11 @@ When the user interacts with a view (zooms to a date range, clicks a well, appli
 ### 2. `show-well-map` -- Geospatial well map
 - **Resource**: `ui://well-map/mcp-app.html`
 - **Input**: `{ data: [{ well_name, lat, lng, ?status, ?oil_rate, ?gas_rate, ?water_rate, ?loe_per_boe, ?field, ?basin }] }`
-- **Features**: GeoJSON circle layers (GPU-rendered for 1,550+ wells), popups with well detail via `setDOMContent` (XSS-safe), auto-fit bounds, navigation controls, status-colored markers
+- **Features**: DOM-based `maplibregl.Marker` elements (not WebGL layers — sandbox blocks WebGL rendering), popups with well detail via `setDOMContent` (XSS-safe), auto-fit bounds, navigation controls, status-colored markers
 - **Colors**: Status uses well status color map. Fallback: gray for unknown status
-- **Streaming**: `ontoolinputpartial` renders wells incrementally; map init gated behind `map.on('load')`
-- **CSP**: `_meta.ui.csp: { resourceDomains: ["https://unpkg.com"], connectDomains: ["https://tiles.openfreemap.org", "https://demotiles.maplibre.org"] }`
-- **CDN**: MapLibre GL JS v5.19.0 loaded via `<script>` tag from unpkg (too large to single-file bundle)
+- **Streaming**: `ontoolinputpartial` renders wells incrementally (fitBounds skipped during streaming to prevent jank); map init gated behind `map.on('load')`
+- **CSP**: `_meta.ui.csp: { connectDomains: ["https://tile.openstreetmap.org", "https://tiles.openfreemap.org", "https://demotiles.maplibre.org"] }`
+- **Bundling**: MapLibre GL JS bundled via npm import (CDN script tags blocked in sandbox). Inline `StyleSpecification` with OSM raster tiles (remote style JSON fetch also blocked).
 
 ### 3. `visualize-variance` -- Waterfall chart
 - **Resource**: `ui://variance-waterfall/mcp-app.html`
@@ -275,12 +275,22 @@ npm run dev            # Hot-reload (views watch + tsx watch)
       "command": "bash",
       "args": [
         "-c",
-        "cd ~/code/mcp-app && npm run build >&2 && npx tsx main.ts --stdio"
+        "cd /Users/robstover/Development/formentera/mcp-app && npm run build >&2 && npx tsx main.ts --stdio"
       ]
     }
   }
 }
 ```
+
+## Claude Desktop sandbox constraints
+
+Claude Desktop renders MCP App HTML in a sandboxed iframe. Key constraints discovered through testing:
+
+1. **CDN script/link tags are blocked** — All JS/CSS must be bundled into the single HTML file via `vite-plugin-singlefile`. MapLibre (~1.5MB) is bundled via npm import.
+2. **Remote style JSON fetches fail** — MapLibre's default `style: "https://..."` URL is blocked. Use an inline `StyleSpecification` object instead.
+3. **WebGL `addSource`/`addLayer` don't render** — Circle layers and other WebGL-rendered features are invisible. Use DOM-based `maplibregl.Marker` with custom HTML elements.
+4. **Raster tile loading may be blocked** — OSM tiles (`tile.openstreetmap.org`) are configured in `connectDomains` CSP but may still fail. Gray background fallback ensures wells are visible regardless.
+5. **Build output must go to stderr** — The stdio transport uses stdout for MCP protocol. Redirect build output with `>&2`.
 
 ## Testing
 
@@ -329,4 +339,4 @@ User asks follow-up -> Claude has context from updateModelContext, responds inte
 - Basins: Permian, Eagle Ford, SCOOP/STACK, Williston
 - Key systems: ProdView, Quorum OnDemand, Enverus, WellDrive, Snowflake (FORMENTERA-DATAHUB)
 - O&G domain terms the tools handle: BOE (barrel of oil equivalent, gas/6), LOE (lease operating expense), NRI, working interest, decline curves, type curves, variance categories (downtime, decline, new wells, workovers)
-- Well count: ~1,550 boxes of well files across Dallas, Midland, Austin -- marker-based rendering (not GeoJSON layers) is fine at this scale
+- Well count: ~1,550 boxes of well files across Dallas, Midland, Austin -- DOM-based `maplibregl.Marker` elements work well at this scale (WebGL circle layers don't render in Claude Desktop's sandbox iframe)
