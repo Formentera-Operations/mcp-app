@@ -32,9 +32,9 @@ export function createViewApp(
       if (btn) btn.style.display = canFullscreen ? 'block' : 'none';
     }
 
-    // Track display mode
-    if (ctx.displayMode) {
-      currentDisplayMode = ctx.displayMode as 'inline' | 'fullscreen';
+    // Track display mode (validate — SDK may add new modes like 'pip')
+    if (ctx.displayMode === 'inline' || ctx.displayMode === 'fullscreen') {
+      currentDisplayMode = ctx.displayMode;
       document.querySelector('.main')?.classList.toggle(
         'fullscreen',
         currentDisplayMode === 'fullscreen',
@@ -110,7 +110,9 @@ export function createViewApp(
       const newMode = currentDisplayMode === 'fullscreen' ? 'inline' : 'fullscreen';
       try {
         const result = await app.requestDisplayMode({ mode: newMode });
-        currentDisplayMode = result.mode as 'inline' | 'fullscreen';
+        if (result.mode === 'inline' || result.mode === 'fullscreen') {
+          currentDisplayMode = result.mode;
+        }
         document.querySelector('.main')?.classList.toggle(
           'fullscreen',
           currentDisplayMode === 'fullscreen',
@@ -129,9 +131,15 @@ export function createViewApp(
   });
 
   // --- Connect, then apply initial host context ---
-  app.connect().then(() => {
-    initThemeAfterConnect(app);
-  });
+  app.connect()
+    .then(() => initThemeAfterConnect(app))
+    .catch((err) => {
+      const el = document.getElementById('error-msg');
+      if (el) {
+        el.textContent = `Connection failed: ${String(err)}`;
+        el.style.display = 'flex';
+      }
+    });
 
   return app;
 }

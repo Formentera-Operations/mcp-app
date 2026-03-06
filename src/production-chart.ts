@@ -1,4 +1,20 @@
-import * as echarts from 'echarts';
+import * as echarts from 'echarts/core';
+import { LineChart } from 'echarts/charts';
+import type { LineSeriesOption } from 'echarts/charts';
+import {
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  DataZoomComponent,
+} from 'echarts/components';
+import type {
+  GridComponentOption,
+  TooltipComponentOption,
+  LegendComponentOption,
+  DataZoomComponentOption,
+} from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+import type { ComposeOption } from 'echarts/core';
 import { createViewApp } from './shared/lifecycle.ts';
 import {
   COMMODITY_COLORS,
@@ -9,6 +25,24 @@ import {
   FP_OFF_WHITE,
 } from './shared/colors.ts';
 import { fmtNum } from './shared/format.ts';
+
+// Register required ECharts components (tree-shaking)
+echarts.use([
+  LineChart,
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  DataZoomComponent,
+  CanvasRenderer,
+]);
+
+type ECOption = ComposeOption<
+  | LineSeriesOption
+  | GridComponentOption
+  | TooltipComponentOption
+  | LegendComponentOption
+  | DataZoomComponentOption
+>;
 
 // Register Formentera brand theme
 echarts.registerTheme('formentera', FP_ECHARTS_THEME);
@@ -48,7 +82,9 @@ function extractData(args: Record<string, unknown>): ProductionRecord[] | null {
 
 let chart: echarts.ECharts | null = null;
 let currentData: ProductionRecord[] = [];
+let chartDates: string[] = [];
 let logScale = false;
+let dataZoomWired = false;
 const visibleStreams = { oil: true, gas: true, water: true };
 
 // --- UI helpers ---
@@ -141,10 +177,11 @@ function buildChart(data: ProductionRecord[]): void {
   }
 
   const dates = [...byDate.keys()].sort();
-  const oilValues = dates.map((d) => byDate.get(d)!.oil);
-  const gasValues = dates.map((d) => byDate.get(d)!.gas);
-  const waterValues = dates.map((d) => byDate.get(d)!.water);
-  const forecastMask = dates.map((d) => byDate.get(d)!.forecast);
+  chartDates = dates;
+  const oilValues = dates.map((d) => byDate.get(d)?.oil ?? 0);
+  const gasValues = dates.map((d) => byDate.get(d)?.gas ?? 0);
+  const waterValues = dates.map((d) => byDate.get(d)?.water ?? 0);
+  const forecastMask = dates.map((d) => byDate.get(d)?.forecast ?? false);
 
   // Build series with forecast split (dashed purple lines)
   const makeSeries = (
@@ -152,12 +189,12 @@ function buildChart(data: ProductionRecord[]): void {
     values: number[],
     color: string,
     yAxisIndex: number,
-  ): echarts.SeriesOption[] => {
+  ): LineSeriesOption[] => {
     const actual = values.map((v, i) => (forecastMask[i] ? null : v));
     const forecast = values.map((v, i) => (forecastMask[i] ? v : null));
     const hasForecast = forecast.some((v) => v !== null);
 
-    const series: echarts.SeriesOption[] = [
+    const series: LineSeriesOption[] = [
       {
         name,
         type: 'line',
@@ -185,12 +222,12 @@ function buildChart(data: ProductionRecord[]): void {
     return series;
   };
 
-  const series: echarts.SeriesOption[] = [];
+  const series: LineSeriesOption[] = [];
   if (visibleStreams.oil) series.push(...makeSeries('Oil (BBL/D)', oilValues, COMMODITY_COLORS.oil, 0));
   if (visibleStreams.gas) series.push(...makeSeries('Gas (MCF/D)', gasValues, COMMODITY_COLORS.gas, 1));
   if (visibleStreams.water) series.push(...makeSeries('Water (BBL/D)', waterValues, COMMODITY_COLORS.water, 0));
 
-  const option: echarts.EChartsOption = {
+  const option: ECOption = {
     tooltip: {
       trigger: 'axis',
       backgroundColor: FP_NAVY,
@@ -279,20 +316,27 @@ function setupToolbar(): void {
 // --- DataZoom -> updateModelContext ---
 
 function setupDataZoomContext(app: ReturnType<typeof createViewApp>): void {
-  if (!chart) return;
+  if (!chart || dataZoomWired) return;
+  dataZoomWired = true;
 
   let zoomTimeout = 0;
   chart.on('datazoom', () => {
     clearTimeout(zoomTimeout);
     zoomTimeout = window.setTimeout(() => {
-      if (!chart) return;
-      const opts = chart.getOption() as Record<string, unknown>;
-      const zoom = (opts.dataZoom as Array<{ startValue?: number; endValue?: number }>)?.[0];
-      const dates = ((opts.xAxis as Array<{ data?: string[] }>)?.[0])?.data;
-      if (!zoom || !dates) return;
+      if (!chart || chartDates.length === 0) return;
+
+      // Read zoom range — getOption() returns our own option data
+      const dz = chart.getOption().dataZoom as
+        | Array<{ startValue?: number; endValue?: number }>
+        | undefined;
+      const zoom = dz?.[0];
+      if (!zoom) return;
 
       const startIdx = Math.max(0, Math.round(zoom.startValue ?? 0));
-      const endIdx = Math.min(dates.length - 1, Math.round(zoom.endValue ?? dates.length - 1));
+      const endIdx = Math.min(
+        chartDates.length - 1,
+        Math.round(zoom.endValue ?? chartDates.length - 1),
+      );
       const wells = [...new Set(currentData.map((d) => d.well_name))];
 
       app.updateModelContext({
@@ -300,7 +344,7 @@ function setupDataZoomContext(app: ReturnType<typeof createViewApp>): void {
           {
             type: 'text',
             text: JSON.stringify({
-              visibleDateRange: { start: dates[startIdx], end: dates[endIdx] },
+              visibleDateRange: { start: chartDates[startIdx], end: chartDates[endIdx] },
               wells,
               streamVisibility: visibleStreams,
               scaleMode: logScale ? 'log' : 'linear',

@@ -12,8 +12,9 @@ async function startStdioServer(): Promise<void> {
 async function startHttpServer(): Promise<void> {
   const port = parseInt(process.env.PORT ?? '3001', 10);
 
-  const app = createMcpExpressApp({ host: '0.0.0.0' });
-  app.use(cors());
+  const host = process.env.HOST ?? '127.0.0.1';
+  const app = createMcpExpressApp({ host });
+  app.use(cors({ origin: ['http://localhost:8080'] }));
 
   app.all('/mcp', async (req: Request, res: Response) => {
     const server = createServer();
@@ -30,6 +31,7 @@ async function startHttpServer(): Promise<void> {
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
+      console.error('MCP transport error:', error);
       if (!res.headersSent) {
         res.status(500).json({
           jsonrpc: '2.0',

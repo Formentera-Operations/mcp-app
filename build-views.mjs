@@ -16,14 +16,16 @@ if (views.length === 0) {
   process.exit(0);
 }
 
-// Clean dist of old view HTML files before rebuild
-if (existsSync('dist')) {
-  for (const file of readdirSync('dist')) {
+// Clean dist/views/ of old HTML files before rebuild
+const viewsOutDir = join('dist', 'views');
+if (existsSync(viewsOutDir)) {
+  for (const file of readdirSync(viewsOutDir)) {
     if (file.endsWith('.html')) {
-      rmSync(join('dist', file));
+      rmSync(join(viewsOutDir, file));
     }
   }
-} else {
+}
+if (!existsSync('dist')) {
   mkdirSync('dist');
 }
 

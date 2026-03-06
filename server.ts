@@ -14,9 +14,14 @@ const DIST_DIR = import.meta.filename.endsWith('.ts')
   ? path.join(import.meta.dirname, 'dist')
   : import.meta.dirname;
 
+const htmlCache = new Map<string, string>();
+
 async function readViewHtml(filename: string): Promise<string> {
-  // Views build to dist/views/ since input is views/*.html
-  return fs.readFile(path.join(DIST_DIR, 'views', filename), 'utf-8');
+  const cached = htmlCache.get(filename);
+  if (cached) return cached;
+  const html = await fs.readFile(path.join(DIST_DIR, 'views', filename), 'utf-8');
+  htmlCache.set(filename, html);
+  return html;
 }
 
 export function createServer(): McpServer {

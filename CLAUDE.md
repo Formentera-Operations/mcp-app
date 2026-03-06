@@ -264,7 +264,7 @@ npm run dev            # Hot-reload (views watch + tsx watch)
       "command": "bash",
       "args": [
         "-c",
-        "cd ~/code/mcp-app && npm run build >&2 && node dist/main.js --stdio"
+        "cd ~/code/mcp-app && npm run build >&2 && npx tsx main.ts --stdio"
       ]
     }
   }
