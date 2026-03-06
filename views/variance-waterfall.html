@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Variance Waterfall</title>
+  <style>
+    :root {
+      --fp-navy: #001F45;
+      --fp-white: #FFFFFF;
+      --fp-off-white: #F2F2F2;
+      --fp-light-gray: #E6E6E6;
+      --fp-gray: #7F7F7F;
+      --fp-negative: #C00000;
+      --fp-positive: #00B050;
+      --fp-font: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--fp-font);
+      background: var(--fp-white);
+      color: var(--fp-navy);
+      overflow: hidden;
+    }
+    .main {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      border-radius: var(--border-radius-lg, 8px);
+      overflow: hidden;
+    }
+    .main.fullscreen { border-radius: 0; }
+
+    .kpi-strip {
+      display: flex;
+      gap: 16px;
+      padding: 8px 16px;
+      background: var(--fp-off-white);
+      border-bottom: 1px solid var(--fp-light-gray);
+      flex-shrink: 0;
+    }
+    .kpi { text-align: center; }
+    .kpi-value { font-size: 18px; font-weight: bold; color: var(--fp-navy); }
+    .kpi-label { font-size: 11px; color: var(--fp-gray); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    #chart { flex: 1; min-height: 0; }
+
+    .fullscreen-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 10;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid var(--fp-light-gray);
+      border-radius: 4px;
+      padding: 4px;
+      cursor: pointer;
+      line-height: 0;
+      display: none;
+    }
+
+    .error-msg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: var(--fp-negative);
+      font-size: 14px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: var(--fp-gray);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="main">
+    <div class="loading" id="loading">Loading variance data...</div>
+    <div class="kpi-strip" id="kpi-strip" style="display:none"></div>
+    <div id="chart"></div>
+    <button class="fullscreen-btn" id="fullscreen-btn" title="Toggle fullscreen">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--fp-navy)" stroke-width="1.5">
+        <polyline points="10,2 14,2 14,6"/><polyline points="6,14 2,14 2,10"/>
+        <line x1="14" y1="2" x2="10" y2="6"/><line x1="2" y1="14" x2="6" y2="10"/>
+      </svg>
+    </button>
+    <div class="error-msg" id="error-msg" style="display:none"></div>
+  </div>
+  <script type="module" src="/src/variance-waterfall.ts"></script>
+</body>
+</html>

@@ -183,34 +183,41 @@ When the user interacts with a view (zooms to a date range, clicks a well, appli
 
 ### 2. `show-well-map` -- Geospatial well map
 - **Resource**: `ui://well-map/mcp-app.html`
-- **Input**: JSON array of `{ well_name, lat, lng, status, ?oil_rate, ?gas_rate, ?water_rate, ?loe_per_boe, ?field, ?basin }`
-- **Features**: Color by status/basin/field/oil_rate/loe_per_boe, popups with well detail, auto-fit bounds, navigation controls
-- **Colors**: Status uses well status color map. Basin/field uses FP_CHART_COLORS. Rate heat uses Navy->Teal->Green gradient
-- **Context**: On well click, `updateModelContext` with selected well details
-- **Stretch**: "Show production" button in popup triggers `sendMessage` to Claude
-- **CSP**: `resourceDomains: [unpkg.com, cdn.jsdelivr.net]`, `connectDomains: [tiles.openfreemap.org, demotiles.maplibre.org, nominatim.openstreetmap.org]`
+- **Input**: `{ data: [{ well_name, lat, lng, ?status, ?oil_rate, ?gas_rate, ?water_rate, ?loe_per_boe, ?field, ?basin }] }`
+- **Features**: GeoJSON circle layers (GPU-rendered for 1,550+ wells), popups with well detail via `setDOMContent` (XSS-safe), auto-fit bounds, navigation controls, status-colored markers
+- **Colors**: Status uses well status color map. Fallback: gray for unknown status
+- **Streaming**: `ontoolinputpartial` renders wells incrementally; map init gated behind `map.on('load')`
+- **CSP**: `_meta.ui.csp: { resourceDomains: ["https://unpkg.com"], connectDomains: ["https://tiles.openfreemap.org", "https://demotiles.maplibre.org"] }`
+- **CDN**: MapLibre GL JS v5.19.0 loaded via `<script>` tag from unpkg (too large to single-file bundle)
 
 ### 3. `visualize-variance` -- Waterfall chart
 - **Resource**: `ui://variance-waterfall/mcp-app.html`
 - **Input**: `{ base_boe, current_boe, period_label, components: [{ category, delta_boe }] }`
-- **Features**: Invisible-base stacked bar waterfall, signed labels
+- **Features**: 3-series stacked bar waterfall (invisible base + positive + negative), sorted by absolute magnitude, signed labels, KPI strip with delta
 - **Colors**: Positive=#00B050, Negative=#C00000, Totals=#001F45 (brand functional colors)
+- **Streaming**: `ontoolinputpartial` renders chart incrementally
 - **CSP**: None needed (fully bundled)
 
 ### 4. `visualize-decline` -- Decline curve analysis
 - **Resource**: `ui://decline-curve/mcp-app.html`
-- **Input**: `{ well_name, actual: [{ date, oil_bbl }], ?forecast: { method, ip, di, b, months }, ?type_curve: [{ month, p10, p50, p90 }] }`
-- **Features**: Scatter (actual production) + fitted decline line (Arps: exponential/hyperbolic/harmonic), EUR estimate display, remaining reserves, P10/P50/P90 type curve overlay, log scale Y-axis default
-- **Colors**: Actual=Navy, Forecast=Purple (dashed), P10/P50/P90=Teal family tints
-- **Context**: On forecast parameter change, `updateModelContext` with EUR and remaining
+- **Input**: `{ well_name, actual: [{ date, oil_bbl }], ?forecast: { method, ip, di, b, months } | { fit: true, months } }`
+- **Features**: Scatter (actual) + Arps decline line (exponential/hyperbolic/harmonic), auto-fit mode computes exponential params client-side, EUR estimate in KPIs, log Y-axis default, DataZoom slider
+- **Colors**: Actual=Navy scatter, Forecast=Purple dashed line
 - **CSP**: None needed (fully bundled)
 
 ### 5. `show-data-table` -- Sortable data table
 - **Resource**: `ui://data-table/mcp-app.html`
-- **Input**: `{ title, columns: [{ key, label, type: "string"|"number"|"currency"|"date"|"percent" }], rows: [{}], ?sort_by, ?highlight_rules: [{ column, condition, color }] }`
-- **Features**: Column sorting, text filter, conditional formatting, sticky headers, number formatting with commas, export to CSV
+- **Input**: `{ title, columns: [{ key, label, type: "string"|"number"|"currency"|"date"|"percent" }], rows: [{}], ?sort_by, ?highlight_rules: [{ column, condition, color, ?threshold }] }`
+- **Features**: Column sorting, text filter, conditional formatting (positive/negative/gt/lt), sticky headers, number formatting
 - **Colors**: Header=Navy bg/white text, rows=alternating white/#F2F2F2, positive=#00B050, negative=#C00000
-- **Streaming**: `ontoolinputpartial` renders rows as they arrive
+- **Streaming**: `ontoolinputpartial` renders rows progressively; sorting/filtering disabled until data finalized
+- **CSP**: None needed (fully bundled)
+
+### 6. `show-los-table` -- Lease Operating Statement
+- **Resource**: `ui://los-table/mcp-app.html`
+- **Input**: `{ title, ?entity, periods: string[], sections: [{ category, subtotal, items: [{ label, values }] }], ?grand_total }`
+- **Features**: Hierarchical financial statement with collapsible category rows, monthly columns + computed total column, subtotal rows, grand total (net operating income) row, negative values in red
+- **Colors**: Category rows=Off-white, subtotals=Navy top-border, grand total=Navy bg/white text, negatives=#C00000
 - **CSP**: None needed (fully bundled)
 
 ## Project structure
@@ -230,18 +237,22 @@ mcp-app/
 │   │   ├── theme.ts        <- Host theming + FP brand ECharts theme registration
 │   │   ├── colors.ts       <- All brand color constants (FP_CHART_COLORS, commodity, status, functional)
 │   │   ├── lifecycle.ts    <- Common App init, IntersectionObserver, fullscreen
-│   │   └── format.ts       <- Number/date formatting (commas, BBL/D, MCF/D)
+│   │   ├── format.ts       <- Number/date formatting (commas, BBL/D, MCF/D)
+│   │   ├── security.ts     <- escapeHtml utility (XSS prevention)
+│   │   └── decline-math.ts <- Arps decline curve formulas + auto-fit
 │   ├── production-chart.ts <- ECharts production UI logic
 │   ├── well-map.ts         <- MapLibre well map UI logic
 │   ├── variance-waterfall.ts <- ECharts waterfall UI logic
 │   ├── decline-curve.ts    <- ECharts decline curve UI logic
-│   └── data-table.ts       <- Sortable data table UI logic
+│   ├── data-table.ts       <- Sortable data table UI logic
+│   └── los-table.ts        <- Hierarchical LOS financial table UI logic
 ├── views/
 │   ├── production-chart.html
 │   ├── well-map.html
 │   ├── variance-waterfall.html
 │   ├── decline-curve.html
-│   └── data-table.html
+│   ├── data-table.html
+│   └── los-table.html
 └── dist/                   <- Built output (gitignored)
 ```
 
