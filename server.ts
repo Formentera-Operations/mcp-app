@@ -348,7 +348,6 @@ export function createServer(): McpServer {
         ui: {
           resourceUri: wellMapUri,
           csp: {
-            resourceDomains: ['https://unpkg.com'],
             connectDomains: ['https://tiles.openfreemap.org', 'https://demotiles.maplibre.org'],
           },
         },

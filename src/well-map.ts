@@ -1,40 +1,9 @@
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { createViewApp } from './shared/lifecycle.ts';
 import { STATUS_COLORS, FP_GRAY, FP_NAVY } from './shared/colors.ts';
 import { fmtNum, fmtCurrency } from './shared/format.ts';
 import { showError } from './shared/errors.ts';
-
-// MapLibre is loaded via CDN (too large to bundle as single-file)
-declare const maplibregl: {
-  Map: new (opts: Record<string, unknown>) => MapInstance;
-  LngLatBounds: new () => LngLatBoundsInstance;
-  NavigationControl: new () => unknown;
-  Popup: new (opts?: Record<string, unknown>) => PopupInstance;
-};
-
-interface MapInstance {
-  on(event: string, cb: (...args: unknown[]) => void): void;
-  on(event: string, layer: string, cb: (...args: unknown[]) => void): void;
-  addSource(id: string, source: Record<string, unknown>): void;
-  addLayer(layer: Record<string, unknown>): void;
-  addControl(ctrl: unknown): void;
-  fitBounds(bounds: LngLatBoundsInstance, opts?: Record<string, unknown>): void;
-  resize(): void;
-  remove(): void;
-  getCanvas(): HTMLCanvasElement;
-  getSource(id: string): { setData(data: unknown): void } | undefined;
-  loaded(): boolean;
-}
-
-interface LngLatBoundsInstance {
-  extend(coord: [number, number]): LngLatBoundsInstance;
-  isEmpty(): boolean;
-}
-
-interface PopupInstance {
-  setLngLat(coord: [number, number]): PopupInstance;
-  setDOMContent(el: HTMLElement): PopupInstance;
-  addTo(map: MapInstance): PopupInstance;
-}
 
 // --- Types ---
 
@@ -74,7 +43,7 @@ function extractData(args: Record<string, unknown>): WellPoint[] | null {
 
 // --- State ---
 
-let map: MapInstance | null = null;
+let map: maplibregl.Map | null = null;
 let mapLoaded = false;
 let pendingData: WellPoint[] | null = null;
 
@@ -86,12 +55,12 @@ function getStatusColor(status: string | undefined): string {
   return STATUS_COLORS[key] ?? FP_GRAY;
 }
 
-function buildGeoJson(wells: WellPoint[]): Record<string, unknown> {
+function buildGeoJson(wells: WellPoint[]): GeoJSON.FeatureCollection {
   return {
     type: 'FeatureCollection',
     features: wells.map((w) => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [w.lng, w.lat] },
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [w.lng, w.lat] },
       properties: {
         well_name: w.well_name,
         status: w.status ?? 'Unknown',
@@ -205,7 +174,7 @@ function renderWells(wells: WellPoint[], fitBounds = true): void {
   const geojson = buildGeoJson(wells);
 
   // Update or add source
-  const existing = map.getSource('wells');
+  const existing = map.getSource('wells') as maplibregl.GeoJSONSource | undefined;
   if (existing) {
     existing.setData(geojson);
   } else {
