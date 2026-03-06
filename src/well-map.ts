@@ -1,7 +1,7 @@
 import { createViewApp } from './shared/lifecycle.ts';
 import { STATUS_COLORS, FP_GRAY, FP_NAVY } from './shared/colors.ts';
-import { escapeHtml } from './shared/security.ts';
 import { fmtNum, fmtCurrency } from './shared/format.ts';
+import { showError } from './shared/errors.ts';
 
 // MapLibre is loaded via CDN (too large to bundle as single-file)
 declare const maplibregl: {
@@ -59,7 +59,9 @@ function isWellPoint(v: unknown): v is WellPoint {
   return (
     typeof r.well_name === 'string' &&
     typeof r.lat === 'number' &&
-    typeof r.lng === 'number'
+    typeof r.lng === 'number' &&
+    r.lat >= -90 && r.lat <= 90 &&
+    r.lng >= -180 && r.lng <= 180
   );
 }
 
@@ -106,16 +108,6 @@ function buildGeoJson(wells: WellPoint[]): Record<string, unknown> {
 }
 
 // --- UI helpers ---
-
-function showError(msg: string): void {
-  const el = document.getElementById('error-msg');
-  if (el) {
-    el.textContent = msg;
-    el.style.display = 'flex';
-  }
-  const loading = document.getElementById('loading');
-  if (loading) loading.style.display = 'none';
-}
 
 function buildKpiStrip(wells: WellPoint[]): void {
   const strip = document.getElementById('kpi-strip');
@@ -171,13 +163,13 @@ function buildPopupContent(props: Record<string, unknown>): HTMLElement {
   container.appendChild(title);
 
   const rows: Array<[string, string]> = [];
-  if (props.status) rows.push(['Status', escapeHtml(String(props.status))]);
+  if (props.status) rows.push(['Status', String(props.status)]);
   if (props.oil_rate != null) rows.push(['Oil', `${fmtNum(Number(props.oil_rate))} BBL/D`]);
   if (props.gas_rate != null) rows.push(['Gas', `${fmtNum(Number(props.gas_rate))} MCF/D`]);
   if (props.water_rate != null) rows.push(['Water', `${fmtNum(Number(props.water_rate))} BBL/D`]);
   if (props.loe_per_boe != null) rows.push(['LOE/BOE', fmtCurrency(Number(props.loe_per_boe))]);
-  if (props.field) rows.push(['Field', escapeHtml(String(props.field))]);
-  if (props.basin) rows.push(['Basin', escapeHtml(String(props.basin))]);
+  if (props.field) rows.push(['Field', String(props.field)]);
+  if (props.basin) rows.push(['Basin', String(props.basin)]);
 
   for (const [label, value] of rows) {
     const row = document.createElement('div');
@@ -199,7 +191,7 @@ function buildPopupContent(props: Record<string, unknown>): HTMLElement {
   return container;
 }
 
-function renderWells(wells: WellPoint[]): void {
+function renderWells(wells: WellPoint[], fitBounds = true): void {
   if (!map || !mapLoaded) {
     pendingData = wells;
     return;
@@ -255,13 +247,15 @@ function renderWells(wells: WellPoint[]): void {
     });
   }
 
-  // Fit bounds to wells
-  const bounds = new maplibregl.LngLatBounds();
-  for (const w of wells) {
-    bounds.extend([w.lng, w.lat]);
-  }
-  if (!bounds.isEmpty()) {
-    map.fitBounds(bounds, { padding: 50, maxZoom: 12 });
+  // Fit bounds to wells (skip during streaming to prevent jank)
+  if (fitBounds) {
+    const bounds = new maplibregl.LngLatBounds();
+    for (const w of wells) {
+      bounds.extend([w.lng, w.lat]);
+    }
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, { padding: 50, maxZoom: 12 });
+    }
   }
 }
 
@@ -294,7 +288,7 @@ createViewApp('Well Map', '0.1.0', {
     const wells = extractData(args);
     if (wells) {
       if (!map) initMap();
-      renderWells(wells);
+      renderWells(wells, false);
     }
   },
   onToolInput: (args) => {
@@ -318,5 +312,6 @@ createViewApp('Well Map', '0.1.0', {
   },
   onPause: () => {},
   onResume: () => { map?.resize(); },
+  onTeardown: () => { map?.remove(); map = null; mapLoaded = false; },
 });
 

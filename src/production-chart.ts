@@ -25,6 +25,7 @@ import {
   FP_OFF_WHITE,
 } from './shared/colors.ts';
 import { fmtNum } from './shared/format.ts';
+import { showError } from './shared/errors.ts';
 
 // Register required ECharts components (tree-shaking)
 echarts.use([
@@ -88,16 +89,6 @@ let dataZoomWired = false;
 const visibleStreams = { oil: true, gas: true, water: true };
 
 // --- UI helpers ---
-
-function showError(msg: string): void {
-  const el = document.getElementById('error-msg');
-  if (el) {
-    el.textContent = msg;
-    el.style.display = 'flex';
-  }
-  const loading = document.getElementById('loading');
-  if (loading) loading.style.display = 'none';
-}
 
 function buildKpiStrip(data: ProductionRecord[]): void {
   const strip = document.getElementById('kpi-strip');
@@ -246,6 +237,7 @@ function buildChart(data: ProductionRecord[]): void {
       {
         type: logScale ? 'log' : 'value',
         name: 'BBL/D',
+        min: logScale ? 1 : undefined,
         nameTextStyle: { color: FP_GRAY, fontSize: 11 },
         axisLabel: { color: FP_GRAY, fontSize: 11 },
         axisLine: { lineStyle: { color: FP_LIGHT_GRAY } },
@@ -254,6 +246,7 @@ function buildChart(data: ProductionRecord[]): void {
       {
         type: logScale ? 'log' : 'value',
         name: 'MCF/D',
+        min: logScale ? 1 : undefined,
         nameTextStyle: { color: FP_GRAY, fontSize: 11 },
         axisLabel: { color: FP_GRAY, fontSize: 11 },
         axisLine: { lineStyle: { color: FP_LIGHT_GRAY } },
@@ -391,6 +384,7 @@ const app = createViewApp('Production Chart', '0.1.0', {
   },
   onPause: () => { /* ECharts auto-pauses canvas rendering when hidden */ },
   onResume: () => { chart?.resize(); },
+  onTeardown: () => { chart?.dispose(); chart = null; },
 });
 
 setupToolbar();

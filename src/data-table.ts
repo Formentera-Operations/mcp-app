@@ -1,5 +1,5 @@
 import { createViewApp } from './shared/lifecycle.ts';
-import { escapeHtml } from './shared/security.ts';
+import { showError } from './shared/errors.ts';
 import {
   FP_POSITIVE,
   FP_NEGATIVE,
@@ -76,7 +76,7 @@ function formatCell(value: unknown, type: string): string {
     case 'currency': return fmtCurrency(Number(value));
     case 'percent': return fmtPercent(Number(value));
     case 'date': return fmtDate(String(value));
-    default: return escapeHtml(String(value));
+    default: return String(value);
   }
 }
 
@@ -115,16 +115,6 @@ function evaluateHighlight(
 }
 
 // --- UI helpers ---
-
-function showError(msg: string): void {
-  const el = document.getElementById('error-msg');
-  if (el) {
-    el.textContent = msg;
-    el.style.display = 'flex';
-  }
-  const loading = document.getElementById('loading');
-  if (loading) loading.style.display = 'none';
-}
 
 function buildTable(data: TableData): void {
   if (data.columns.length === 0) {

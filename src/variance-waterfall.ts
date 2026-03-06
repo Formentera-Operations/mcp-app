@@ -21,6 +21,8 @@ import {
   FP_LIGHT_GRAY,
 } from './shared/colors.ts';
 import { fmtNum } from './shared/format.ts';
+import { escapeHtml } from './shared/security.ts';
+import { showError } from './shared/errors.ts';
 
 // Register required ECharts components (tree-shaking)
 echarts.use([
@@ -81,16 +83,6 @@ function extractData(args: Record<string, unknown>): VarianceData | null {
 let chart: echarts.ECharts | null = null;
 
 // --- UI helpers ---
-
-function showError(msg: string): void {
-  const el = document.getElementById('error-msg');
-  if (el) {
-    el.textContent = msg;
-    el.style.display = 'flex';
-  }
-  const loading = document.getElementById('loading');
-  if (loading) loading.style.display = 'none';
-}
 
 function buildKpiStrip(data: VarianceData): void {
   const strip = document.getElementById('kpi-strip');
@@ -212,13 +204,14 @@ function buildChart(data: VarianceData): void {
         const catName = p.axisValue;
 
         // Total bars
-        if (idx === 0) return `<b>${catName}</b><br/>BOE/D: ${fmtNum(data.base_boe)}`;
-        if (idx === categories.length - 1) return `<b>${catName}</b><br/>BOE/D: ${fmtNum(data.current_boe)}`;
+        const safeName = escapeHtml(catName);
+        if (idx === 0) return `<b>${safeName}</b><br/>BOE/D: ${fmtNum(data.base_boe)}`;
+        if (idx === categories.length - 1) return `<b>${safeName}</b><br/>BOE/D: ${fmtNum(data.current_boe)}`;
 
         // Delta bar
         const comp = sorted[idx - 1];
         const sign = comp.delta_boe >= 0 ? '+' : '';
-        return `<b>${catName}</b><br/>Delta: ${sign}${fmtNum(comp.delta_boe)} BOE/D`;
+        return `<b>${safeName}</b><br/>Delta: ${sign}${fmtNum(comp.delta_boe)} BOE/D`;
       },
     },
     grid: { left: 70, right: 24, top: 24, bottom: 40 },
@@ -319,4 +312,5 @@ createViewApp('Variance Waterfall', '0.1.0', {
   },
   onPause: () => {},
   onResume: () => { chart?.resize(); },
+  onTeardown: () => { chart?.dispose(); chart = null; },
 });

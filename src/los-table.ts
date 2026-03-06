@@ -1,5 +1,6 @@
 import { createViewApp } from './shared/lifecycle.ts';
 import { fmtCurrency } from './shared/format.ts';
+import { showError } from './shared/errors.ts';
 
 // --- Types ---
 
@@ -63,16 +64,6 @@ function extractData(args: Record<string, unknown>): LosData | null {
 const collapsedCategories = new Set<string>();
 
 // --- UI helpers ---
-
-function showError(msg: string): void {
-  const el = document.getElementById('error-msg');
-  if (el) {
-    el.textContent = msg;
-    el.style.display = 'flex';
-  }
-  const loading = document.getElementById('loading');
-  if (loading) loading.style.display = 'none';
-}
 
 function fmtCell(value: number | null | undefined): string {
   if (value == null) return '\u2014';

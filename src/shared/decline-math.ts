@@ -12,7 +12,10 @@ export interface DeclineParams {
 
 /** Calculate production rate at time t (months) using Arps equations */
 export function arpsRate(params: DeclineParams, t: number): number {
-  const { ip, di, b } = params;
+  const { ip } = params;
+  // Clamp b to valid range [0, 2] and di to (0, 1] to prevent divergent forecasts
+  const b = Math.max(0, Math.min(2, params.b));
+  const di = Math.min(Math.max(params.di, 0), 1);
   if (t < 0 || ip <= 0 || di <= 0) return 0;
 
   if (b === 0 || params.method === 'exponential') {

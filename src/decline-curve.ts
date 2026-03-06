@@ -16,6 +16,7 @@ import type {
 import { CanvasRenderer } from 'echarts/renderers';
 import type { ComposeOption } from 'echarts/core';
 import { createViewApp } from './shared/lifecycle.ts';
+import { showError } from './shared/errors.ts';
 import {
   FP_ECHARTS_THEME,
   FP_NAVY,
@@ -126,16 +127,6 @@ function isAutoFitInput(v: unknown): v is AutoFitInput {
 let chart: echarts.ECharts | null = null;
 
 // --- UI helpers ---
-
-function showError(msg: string): void {
-  const el = document.getElementById('error-msg');
-  if (el) {
-    el.textContent = msg;
-    el.style.display = 'flex';
-  }
-  const loading = document.getElementById('loading');
-  if (loading) loading.style.display = 'none';
-}
 
 function buildKpiStrip(
   data: DeclineData,
@@ -339,4 +330,5 @@ createViewApp('Decline Curve', '0.1.0', {
   },
   onPause: () => {},
   onResume: () => { chart?.resize(); },
+  onTeardown: () => { chart?.dispose(); chart = null; },
 });

@@ -9,6 +9,7 @@ export interface ViewCallbacks {
   onToolCancelled?: (reason: string) => void;
   onPause?: () => void;
   onResume?: () => void;
+  onTeardown?: () => void;
 }
 
 export function createViewApp(
@@ -85,7 +86,10 @@ export function createViewApp(
   app.onerror = (err) => {
     app.sendLog({ level: 'error', data: String(err) });
   };
-  app.onteardown = async () => ({});
+  app.onteardown = async () => {
+    callbacks.onTeardown?.();
+    return {};
+  };
 
   // --- Visibility-based pause/resume ---
   const mainEl = document.querySelector('.main');
