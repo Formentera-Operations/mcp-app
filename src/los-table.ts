@@ -79,22 +79,19 @@ function transformFlatData(args: Record<string, unknown>): LosData | null {
 
   if (typeof title !== 'string' || !Array.isArray(data) || data.length === 0) return null;
 
-  // Parse flat rows
+  // Parse flat rows — coerce string amounts to numbers
   const rows: FlatRow[] = [];
   for (const d of data) {
     if (typeof d !== 'object' || d === null) continue;
     const r = d as Record<string, unknown>;
-    if (
-      typeof r.period !== 'string' ||
-      typeof r.category !== 'string' ||
-      typeof r.line_item !== 'string' ||
-      typeof r.amount !== 'number'
-    ) continue;
+    if (typeof r.period !== 'string' || typeof r.category !== 'string' || typeof r.line_item !== 'string') continue;
+    const amt = typeof r.amount === 'number' ? r.amount : Number(r.amount);
+    if (isNaN(amt)) continue;
     rows.push({
       period: r.period,
       category: r.category,
       line_item: r.line_item,
-      amount: r.amount,
+      amount: amt,
     });
   }
 
@@ -231,6 +228,17 @@ function extractData(args: Record<string, unknown>): LosData | null {
   // Fall back to nested format (legacy)
   if (isNestedLosData(args)) return args;
   return null;
+}
+
+function describeArgs(args: Record<string, unknown>): string {
+  const keys = Object.keys(args);
+  const dataInfo = Array.isArray(args.data)
+    ? `data: ${args.data.length} items`
+    : Array.isArray(args.sections)
+      ? `sections: ${args.sections.length} items`
+      : 'no data/sections';
+  const titleInfo = typeof args.title === 'string' ? `title: "${args.title}"` : 'no title';
+  return `Keys: [${keys.join(', ')}], ${titleInfo}, ${dataInfo}`;
 }
 
 // --- State ---
@@ -416,7 +424,7 @@ createViewApp('LOS Table', '0.1.0', {
     if (data) {
       buildTable(data);
     } else {
-      showError('No LOS data received.');
+      showError(`No LOS data received. ${describeArgs(sc)}`);
     }
   },
   onToolCancelled: () => {

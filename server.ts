@@ -214,7 +214,7 @@ export function createServer(): McpServer {
             period: z.string().describe('Period label or ISO date (e.g., "Jan 2025" or "2025-01-01")'),
             category: z.string().describe('LOS category (e.g., "Revenue", "Lease Operating Expenses", "G&A")'),
             line_item: z.string().describe('Line item / section name (e.g., "Gas Revenue", "Fuel & Power")'),
-            amount: z.number().describe('Amount in natural GL signs (revenue as negative credits, expenses as positive debits)'),
+            amount: z.coerce.number().describe('Amount in natural GL signs (revenue as negative credits, expenses as positive debits)'),
           }),
         ).describe('Flat array of LOS line items — view handles grouping, subtotals, and sign conventions'),
         category_order: z.array(z.string()).optional().describe('Display order for categories. Default: Revenue, Taxes, LOE, G&A, Workover, P&A, Other Income'),
