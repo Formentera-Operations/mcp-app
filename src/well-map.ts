@@ -46,6 +46,7 @@ function extractData(args: Record<string, unknown>): WellPoint[] | null {
 let map: maplibregl.Map | null = null;
 let mapLoaded = false;
 let pendingData: WellPoint[] | null = null;
+const markers: maplibregl.Marker[] = [];
 
 // --- Helpers ---
 
@@ -53,27 +54,6 @@ function getStatusColor(status: string | undefined): string {
   if (!status) return FP_GRAY;
   const key = status.toLowerCase();
   return STATUS_COLORS[key] ?? FP_GRAY;
-}
-
-function buildGeoJson(wells: WellPoint[]): GeoJSON.FeatureCollection {
-  return {
-    type: 'FeatureCollection',
-    features: wells.map((w) => ({
-      type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: [w.lng, w.lat] },
-      properties: {
-        well_name: w.well_name,
-        status: w.status ?? 'Unknown',
-        oil_rate: w.oil_rate ?? null,
-        gas_rate: w.gas_rate ?? null,
-        water_rate: w.water_rate ?? null,
-        loe_per_boe: w.loe_per_boe ?? null,
-        field: w.field ?? '',
-        basin: w.basin ?? '',
-        color: getStatusColor(w.status),
-      },
-    })),
-  };
 }
 
 // --- UI helpers ---
@@ -160,6 +140,11 @@ function buildPopupContent(props: Record<string, unknown>): HTMLElement {
   return container;
 }
 
+function clearMarkers(): void {
+  for (const m of markers) m.remove();
+  markers.length = 0;
+}
+
 function renderWells(wells: WellPoint[], fitBounds = true): void {
   if (!map || !mapLoaded) {
     pendingData = wells;
@@ -170,52 +155,44 @@ function renderWells(wells: WellPoint[], fitBounds = true): void {
   if (loading) loading.style.display = 'none';
 
   buildKpiStrip(wells);
+  clearMarkers();
 
-  const geojson = buildGeoJson(wells);
+  // Use DOM-based markers (works in sandbox where WebGL layers may not render)
+  for (const w of wells) {
+    const el = document.createElement('div');
+    el.className = 'well-marker';
+    el.style.width = '14px';
+    el.style.height = '14px';
+    el.style.borderRadius = '50%';
+    el.style.backgroundColor = getStatusColor(w.status);
+    el.style.border = `2px solid ${FP_NAVY}`;
+    el.style.cursor = 'pointer';
 
-  // Update or add source
-  const existing = map.getSource('wells') as maplibregl.GeoJSONSource | undefined;
-  if (existing) {
-    existing.setData(geojson);
-  } else {
-    map.addSource('wells', { type: 'geojson', data: geojson });
+    const marker = new maplibregl.Marker({ element: el })
+      .setLngLat([w.lng, w.lat])
+      .addTo(map);
 
-    map.addLayer({
-      id: 'wells-circle',
-      type: 'circle',
-      source: 'wells',
-      paint: {
-        'circle-radius': 10,
-        'circle-color': ['get', 'color'],
-        'circle-stroke-width': 2,
-        'circle-stroke-color': FP_NAVY,
-      },
-    });
-
-    console.log(`[Well Map] Added ${wells.length} wells to layer`);
-
-    // Click handler for popups
-    map.on('click', 'wells-circle', (e: unknown) => {
-      const event = e as { features?: Array<{ geometry: { coordinates: number[] }; properties: Record<string, unknown> }> };
-      const feature = event.features?.[0];
-      if (!feature || !map) return;
-
-      const coords = feature.geometry.coordinates as [number, number];
-      const content = buildPopupContent(feature.properties);
-
+    // Click → popup
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!map) return;
+      const props: Record<string, unknown> = {
+        well_name: w.well_name,
+        status: w.status,
+        oil_rate: w.oil_rate,
+        gas_rate: w.gas_rate,
+        water_rate: w.water_rate,
+        loe_per_boe: w.loe_per_boe,
+        field: w.field,
+        basin: w.basin,
+      };
       new maplibregl.Popup({ offset: 12 })
-        .setLngLat(coords)
-        .setDOMContent(content)
+        .setLngLat([w.lng, w.lat])
+        .setDOMContent(buildPopupContent(props))
         .addTo(map);
     });
 
-    // Cursor change on hover
-    map.on('mouseenter', 'wells-circle', () => {
-      if (map) map.getCanvas().style.cursor = 'pointer';
-    });
-    map.on('mouseleave', 'wells-circle', () => {
-      if (map) map.getCanvas().style.cursor = '';
-    });
+    markers.push(marker);
   }
 
   // Fit bounds to wells (skip during streaming to prevent jank)
@@ -225,7 +202,6 @@ function renderWells(wells: WellPoint[], fitBounds = true): void {
       bounds.extend([w.lng, w.lat]);
     }
     if (!bounds.isEmpty()) {
-      console.log('[Well Map] fitBounds:', JSON.stringify(bounds));
       map.fitBounds(bounds, { padding: 50, maxZoom: 12 });
     }
   }
