@@ -232,10 +232,28 @@ function initMap(): void {
   const container = document.getElementById('map');
   if (!container || map) return;
 
+  // Inline style with OpenFreeMap raster tiles (no style JSON fetch needed).
+  // Falls back to a plain background if tiles are blocked by CSP.
+  const INLINE_STYLE: maplibregl.StyleSpecification = {
+    version: 8,
+    sources: {
+      'osm-tiles': {
+        type: 'raster',
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        attribution: '&copy; OpenStreetMap contributors',
+      },
+    },
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': '#e8e8e8' } },
+      { id: 'osm', type: 'raster', source: 'osm-tiles' },
+    ],
+  };
+
   try {
     map = new maplibregl.Map({
       container: 'map',
-      style: 'https://tiles.openfreemap.org/styles/liberty',
+      style: INLINE_STYLE,
       center: [-99.5, 32.0], // Texas center
       zoom: 5,
     });
@@ -254,23 +272,11 @@ function initMap(): void {
     }
   });
 
-  // Surface tile/style fetch errors
+  // Surface tile fetch errors (non-fatal — wells still render on background)
   map.on('error', (e) => {
     const msg = (e as { error?: { message?: string } }).error?.message ?? String(e);
     console.error('[Well Map] MapLibre error:', msg);
   });
-
-  // Timeout: if tiles don't load in 10s, render wells on whatever we have
-  setTimeout(() => {
-    if (!mapLoaded && map) {
-      console.warn('[Well Map] Map load timed out — rendering wells without base tiles');
-      mapLoaded = true;
-      if (pendingData) {
-        renderWells(pendingData);
-        pendingData = null;
-      }
-    }
-  }, 10_000);
 }
 
 // --- Initialize ---

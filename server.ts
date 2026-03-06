@@ -348,7 +348,11 @@ export function createServer(): McpServer {
         ui: {
           resourceUri: wellMapUri,
           csp: {
-            connectDomains: ['https://tiles.openfreemap.org', 'https://demotiles.maplibre.org'],
+            connectDomains: [
+              'https://tile.openstreetmap.org',
+              'https://tiles.openfreemap.org',
+              'https://demotiles.maplibre.org',
+            ],
           },
         },
       },
