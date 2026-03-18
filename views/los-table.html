@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Lease Operating Statement</title>
+  <style>
+    :root {
+      --fp-navy: #001F45;
+      --fp-steel: #336699;
+      --fp-white: #FFFFFF;
+      --fp-off-white: #F2F2F2;
+      --fp-light-gray: #E6E6E6;
+      --fp-gray: #7F7F7F;
+      --fp-negative: #C00000;
+      --fp-positive: #00B050;
+      --fp-font: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--fp-font);
+      background: var(--fp-white);
+      color: var(--fp-navy);
+      overflow: hidden;
+    }
+    .main {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      border-radius: var(--border-radius-lg, 8px);
+      overflow: hidden;
+    }
+    .main.fullscreen { border-radius: 0; }
+
+    .los-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      background: var(--fp-off-white);
+      border-bottom: 1px solid var(--fp-light-gray);
+      flex-shrink: 0;
+    }
+    .los-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: var(--fp-navy);
+      flex: 1;
+    }
+    .los-subtitle {
+      font-size: 11px;
+      color: var(--fp-gray);
+    }
+
+    .table-wrap {
+      flex: 1;
+      overflow: auto;
+      min-height: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    thead { position: sticky; top: 0; z-index: 2; }
+    th {
+      background: var(--fp-navy);
+      color: var(--fp-white);
+      font-weight: bold;
+      text-align: right;
+      padding: 8px 12px;
+      white-space: nowrap;
+    }
+    th:first-child { text-align: left; }
+
+    td {
+      padding: 5px 12px;
+      border-bottom: 1px solid var(--fp-light-gray);
+      white-space: nowrap;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    td:first-child { text-align: left; }
+
+    tr.category-row td {
+      font-weight: bold;
+      background: var(--fp-off-white);
+    }
+    tr.subtotal-row td {
+      font-weight: bold;
+      border-top: 2px solid var(--fp-navy);
+    }
+    tr.grand-total-row td {
+      font-weight: bold;
+      background: var(--fp-navy);
+      color: var(--fp-white);
+      border-top: 3px double var(--fp-navy);
+    }
+    tr.leaf-row td:first-child { padding-left: 28px; }
+    tr.leaf-hidden { display: none; }
+
+    .toggle-btn {
+      cursor: pointer;
+      display: inline-block;
+      width: 16px;
+      font-size: 11px;
+      color: var(--fp-steel);
+      user-select: none;
+    }
+
+    .neg { color: var(--fp-negative); }
+
+    .fullscreen-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 10;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid var(--fp-light-gray);
+      border-radius: 4px;
+      padding: 4px;
+      cursor: pointer;
+      line-height: 0;
+      display: none;
+    }
+
+    .error-msg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: var(--fp-negative);
+      font-size: 14px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: var(--fp-gray);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="main">
+    <div class="loading" id="loading">Loading LOS data...</div>
+    <div class="los-header" id="los-header" style="display:none">
+      <div class="los-title" id="los-title"></div>
+      <div class="los-subtitle" id="los-subtitle"></div>
+    </div>
+    <div class="table-wrap" id="table-wrap" style="display:none">
+      <table id="los-table">
+        <thead id="table-head"></thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+    <button class="fullscreen-btn" id="fullscreen-btn" title="Toggle fullscreen">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--fp-navy)" stroke-width="1.5">
+        <polyline points="10,2 14,2 14,6"/><polyline points="6,14 2,14 2,10"/>
+        <line x1="14" y1="2" x2="10" y2="6"/><line x1="2" y1="14" x2="6" y2="10"/>
+      </svg>
+    </button>
+    <div class="error-msg" id="error-msg" style="display:none"></div>
+  </div>
+  <script type="module" src="/src/los-table.ts"></script>
+</body>
+</html>

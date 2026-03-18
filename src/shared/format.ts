@@ -40,3 +40,20 @@ export function fmtDateShort(dateStr: string): string {
   if (isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString('en-US', { month: '2-digit', year: '2-digit' });
 }
+
+// --- Reservoir engineering formatters ---
+
+export function fmtPressure(value: number | null | undefined): string {
+  if (value == null || isNaN(value)) return '\u2014';
+  return `${numFmt.format(value)} psi`;
+}
+
+export function fmtPermeability(value: number | null | undefined): string {
+  if (value == null || isNaN(value)) return '\u2014';
+  return `${decFmt.format(value)} mD`;
+}
+
+export function fmtRate(value: number | null | undefined, unit = 'STB/D'): string {
+  if (value == null || isNaN(value)) return '\u2014';
+  return `${numFmt.format(value)} ${unit}`;
+}
