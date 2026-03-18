@@ -200,9 +200,10 @@ When the user interacts with a view (zooms to a date range, clicks a well, appli
 
 ### 4. `visualize-decline` -- Decline curve analysis
 - **Resource**: `ui://decline-curve/mcp-app.html`
-- **Input**: `{ well_name, actual: [{ date, oil_bbl }], ?forecast: { method, ip, di, b, months } | { fit: true, months } }`
-- **Features**: Scatter (actual) + Arps decline line (exponential/hyperbolic/harmonic), auto-fit mode computes exponential params client-side, EUR estimate in KPIs, log Y-axis default, DataZoom slider
-- **Colors**: Actual=Navy scatter, Forecast=Purple dashed line
+- **Input**: `{ well_name, actual: [{ date, oil_bbl }], ?forecast: { method, ip, di, b, months } | { fit: true, months } | { rates: [{ date, oil_bbl }], ?label }, ?scenarios: [{ label, rates, ?eur_bbl, ?params }], ?type_curve: { label, rates: [{ month, oil_bbl }] } }`
+- **Features**: Scatter (actual) + Arps decline line (exponential/hyperbolic/harmonic), auto-fit mode, pre-computed forecast rates (from Whitson DCA), multi-scenario overlay (P10/P50/P90), confidence band between P10/P90, type curve overlay aligned from first production month, per-scenario EUR in KPIs, log Y-axis default, DataZoom slider
+- **Colors**: Actual=Navy scatter, Forecast=Purple dashed, P90=Green, P50=Navy bold, P10=Crimson, Band=Navy @10% opacity, Type curve=Purple long-dash
+- **Whitson integration**: Accepts output from `whitson_dca.get_saved_cases_bulk` (scenarios), `whitson_dca.get_monthly_rates` (pre-computed rates), `whitson_type_wells.get_saved_cases` (type curve)
 - **CSP**: None needed (fully bundled)
 
 ### 5. `show-data-table` -- Sortable data table
@@ -222,6 +223,22 @@ When the user interacts with a view (zooms to a date range, clicks a well, appli
 - **Colors**: Category rows=Off-white, subtotals=Navy top-border, grand total=Navy bg/white text, negatives=#C00000
 - **CSP**: None needed (fully bundled)
 
+### 7. `visualize-pvt` -- PVT property curves
+- **Resource**: `ui://pvt-chart/mcp-app.html`
+- **Input**: `{ well_name, ?bubble_point_psi, properties: [{ pressure_psi, ?bo, ?bg, ?rs, ?oil_viscosity_cp, ?gas_viscosity_cp, ?oil_density, ?gas_density, ?z_factor }] }`
+- **Features**: Multi-Y-axis line chart (pressure on X-axis), auto-detects which properties have data, bubble point vertical marker (dashed amber), property toggles via legend, dual Y-axis (FVF left, GOR right), KPI strip with Bo/Rs at Pb, DataZoom slider
+- **Colors**: Bo=Navy, Rs=Teal, Bg=Steel, μo=Purple, μg=Crimson, Z=Green (PVT_PROPERTY_COLORS)
+- **Whitson integration**: Accepts output from `whitson_pvt.get_calcs`, `whitson_pvt.get_bot_table`
+- **CSP**: None needed (fully bundled)
+
+### 8. `visualize-nodal` -- Nodal analysis (VLP/IPR)
+- **Resource**: `ui://nodal-chart/mcp-app.html`
+- **Input**: `{ well_name, ?date, ?reservoir_pressure_psi, ipr: [{ rate_stb_d, bhp_psi }], vlp_cases: [{ label, curve: [{ rate_stb_d, bhp_psi }], ?operating_point: { rate_stb_d, bhp_psi } }] }`
+- **Features**: IPR curve (Navy bold) + multiple VLP curves (FP_CHART_COLORS_BASE cycling), operating point markers (green dots at VLP/IPR intersection), reservoir pressure horizontal marker, client-side intersection computation if operating_point not provided, KPI strip with operating rate and flowing BHP
+- **Colors**: IPR=Navy bold, VLP cases=FP_CHART_COLORS_BASE, Operating points=Positive green, Pr line=Gray dashed
+- **Whitson integration**: Accepts output from `whitson_nodal_vlp.get_ipr`, `whitson_nodal_vlp.get_vlp_cases` + `run_vlp`
+- **CSP**: None needed (fully bundled)
+
 ## Project structure
 
 ```
@@ -237,24 +254,29 @@ mcp-app/
 ├── src/
 │   ├── shared/
 │   │   ├── theme.ts        <- Host theming + FP brand ECharts theme registration
-│   │   ├── colors.ts       <- All brand color constants (FP_CHART_COLORS, commodity, status, functional)
+│   │   ├── colors.ts       <- All brand color constants (FP_CHART_COLORS, commodity, status, functional, PVT, scenarios)
 │   │   ├── lifecycle.ts    <- Common App init, IntersectionObserver, fullscreen
-│   │   ├── format.ts       <- Number/date formatting (commas, BBL/D, MCF/D)
+│   │   ├── format.ts       <- Number/date formatting (commas, BBL/D, MCF/D, psi, mD)
 │   │   ├── security.ts     <- escapeHtml utility (XSS prevention)
-│   │   └── decline-math.ts <- Arps decline curve formulas + auto-fit
+│   │   ├── decline-math.ts <- Arps decline curve formulas + auto-fit
+│   │   └── reservoir-math.ts <- Curve intersection (VLP/IPR operating point)
 │   ├── production-chart.ts <- ECharts production UI logic
 │   ├── well-map.ts         <- MapLibre well map UI logic
 │   ├── variance-waterfall.ts <- ECharts waterfall UI logic
-│   ├── decline-curve.ts    <- ECharts decline curve UI logic
+│   ├── decline-curve.ts    <- ECharts decline curve + scenarios + type curve UI logic
 │   ├── data-table.ts       <- Sortable data table UI logic
-│   └── los-table.ts        <- Hierarchical LOS financial table UI logic
+│   ├── los-table.ts        <- Hierarchical LOS financial table UI logic
+│   ├── pvt-chart.ts        <- ECharts PVT property curves UI logic
+│   └── nodal-chart.ts      <- ECharts nodal analysis (VLP/IPR) UI logic
 ├── views/
 │   ├── production-chart.html
 │   ├── well-map.html
 │   ├── variance-waterfall.html
 │   ├── decline-curve.html
 │   ├── data-table.html
-│   └── los-table.html
+│   ├── los-table.html
+│   ├── pvt-chart.html
+│   └── nodal-chart.html
 └── dist/                   <- Built output (gitignored)
 ```
 

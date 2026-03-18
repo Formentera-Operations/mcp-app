@@ -281,23 +281,53 @@ export function createServer(): McpServer {
             fit: z.literal(true).describe('Auto-fit exponential decline from actual data'),
             months: z.number().describe('Forecast duration in months'),
           }),
-        ]).optional().describe('Forecast parameters or auto-fit mode'),
+          z.object({
+            rates: z.array(z.object({
+              date: z.string().describe('ISO date string'),
+              oil_bbl: z.number().describe('Forecasted oil rate BBL/D'),
+            })).describe('Pre-computed forecast rates (e.g., from Whitson DCA)'),
+            label: z.string().optional().describe('Forecast label'),
+          }),
+        ]).optional().describe('Forecast parameters, auto-fit mode, or pre-computed rates'),
+        scenarios: z.array(z.object({
+          label: z.string().describe('Scenario name (e.g., "P10", "P50", "P90")'),
+          rates: z.array(z.object({
+            date: z.string().describe('ISO date string'),
+            oil_bbl: z.number().describe('Forecasted oil rate BBL/D'),
+          })),
+          eur_bbl: z.number().optional().describe('EUR in barrels'),
+          params: z.object({
+            method: z.string(),
+            ip: z.number(),
+            di: z.number(),
+            b: z.number(),
+          }).optional().describe('Arps decline parameters for this scenario'),
+        })).optional().describe('Multiple DCA scenarios (P10/P50/P90 or saved cases)'),
+        type_curve: z.object({
+          label: z.string().describe('Type curve name'),
+          rates: z.array(z.object({
+            month: z.number().describe('Month index from first production'),
+            oil_bbl: z.number().describe('Type curve rate BBL/D'),
+          })),
+        }).optional().describe('Type curve overlay (normalized by month from first production)'),
       },
       _meta: {
         ui: { resourceUri: declineUri },
       },
     },
-    async ({ well_name, actual, forecast }): Promise<CallToolResult> => {
+    async ({ well_name, actual, forecast, scenarios, type_curve }): Promise<CallToolResult> => {
       const peakOil = Math.max(...actual.map((d) => d.oil_bbl));
       const dates = actual.map((d) => d.date).sort();
       const forecastDesc = forecast
-        ? ('fit' in forecast ? 'auto-fit' : forecast.method)
+        ? ('fit' in forecast ? 'auto-fit' : ('rates' in forecast ? 'pre-computed' : forecast.method))
         : 'none';
-      const summary = `Decline curve: ${well_name}, ${actual.length} data points, ${dates[0]} to ${dates[dates.length - 1]}, peak ${Math.round(peakOil)} BBL/D, forecast: ${forecastDesc}`;
+      const scenarioDesc = scenarios?.length ? `, ${scenarios.length} scenario(s): ${scenarios.map((s) => s.label).join(', ')}` : '';
+      const typeCurveDesc = type_curve ? `, type curve: ${type_curve.label}` : '';
+      const summary = `Decline curve: ${well_name}, ${actual.length} data points, ${dates[0]} to ${dates[dates.length - 1]}, peak ${Math.round(peakOil)} BBL/D, forecast: ${forecastDesc}${scenarioDesc}${typeCurveDesc}`;
 
       return {
         content: [{ type: 'text', text: summary }],
-        structuredContent: { well_name, actual, forecast },
+        structuredContent: { well_name, actual, forecast, scenarios, type_curve },
       };
     },
   );
@@ -311,6 +341,134 @@ export function createServer(): McpServer {
       const html = await readViewHtml('decline-curve.html');
       return {
         contents: [{ uri: declineUri, mimeType: RESOURCE_MIME_TYPE, text: html }],
+      };
+    },
+  );
+
+  // ─── visualize-pvt ───────────────────────────────────────
+
+  const pvtChartUri = 'ui://pvt-chart/mcp-app.html';
+
+  registerAppTool(
+    server,
+    'visualize-pvt',
+    {
+      title: 'Visualize PVT Properties',
+      description:
+        'Render PVT property curves vs pressure. Shows Bo (oil formation volume factor), Bg (gas FVF), Rs (solution GOR), viscosity, density, and Z-factor. Plots a vertical marker at bubble point pressure. Ideal for Whitson PVT calculation results.',
+      inputSchema: {
+        well_name: z.string().describe('Well identifier'),
+        bubble_point_psi: z.number().optional().describe('Bubble point pressure in psi'),
+        properties: z.array(
+          z.object({
+            pressure_psi: z.number().describe('Pressure in psi'),
+            bo: z.number().optional().describe('Oil formation volume factor (RB/STB)'),
+            bg: z.number().optional().describe('Gas formation volume factor (RB/SCF)'),
+            rs: z.number().optional().describe('Solution GOR (SCF/STB)'),
+            oil_viscosity_cp: z.number().optional().describe('Oil viscosity (cp)'),
+            gas_viscosity_cp: z.number().optional().describe('Gas viscosity (cp)'),
+            oil_density: z.number().optional().describe('Oil density (lb/ft³)'),
+            gas_density: z.number().optional().describe('Gas density (lb/ft³)'),
+            z_factor: z.number().optional().describe('Gas compressibility factor'),
+          }),
+        ).describe('Array of PVT data points at different pressures'),
+      },
+      _meta: {
+        ui: { resourceUri: pvtChartUri },
+      },
+    },
+    async ({ well_name, bubble_point_psi, properties }): Promise<CallToolResult> => {
+      const pMin = Math.min(...properties.map((d) => d.pressure_psi));
+      const pMax = Math.max(...properties.map((d) => d.pressure_psi));
+      const propsPresent = ['bo', 'bg', 'rs', 'oil_viscosity_cp', 'gas_viscosity_cp', 'z_factor']
+        .filter((k) => properties.some((d) => (d as Record<string, unknown>)[k] != null));
+      const pbDesc = bubble_point_psi != null ? `, Pb=${Math.round(bubble_point_psi)} psi` : '';
+      const summary = `PVT chart: ${well_name}, ${properties.length} points, ${Math.round(pMin)}-${Math.round(pMax)} psi${pbDesc}, properties: ${propsPresent.join(', ')}`;
+
+      return {
+        content: [{ type: 'text', text: summary }],
+        structuredContent: { well_name, bubble_point_psi, properties },
+      };
+    },
+  );
+
+  registerAppResource(
+    server,
+    pvtChartUri,
+    pvtChartUri,
+    { mimeType: RESOURCE_MIME_TYPE },
+    async (): Promise<ReadResourceResult> => {
+      const html = await readViewHtml('pvt-chart.html');
+      return {
+        contents: [{ uri: pvtChartUri, mimeType: RESOURCE_MIME_TYPE, text: html }],
+      };
+    },
+  );
+
+  // ─── visualize-nodal ─────────────────────────────────────
+
+  const nodalChartUri = 'ui://nodal-chart/mcp-app.html';
+
+  registerAppTool(
+    server,
+    'visualize-nodal',
+    {
+      title: 'Visualize Nodal Analysis',
+      description:
+        'Render an IPR/VLP nodal analysis chart. Shows inflow performance relationship (IPR) and one or more vertical lift performance (VLP) curves with operating point intersection. Ideal for production optimization, tubing design, and artificial lift evaluation from Whitson nodal analysis.',
+      inputSchema: {
+        well_name: z.string().describe('Well identifier'),
+        date: z.string().optional().describe('Analysis date'),
+        reservoir_pressure_psi: z.number().optional().describe('Reservoir pressure (psi)'),
+        ipr: z.array(
+          z.object({
+            rate_stb_d: z.number().describe('Production rate (STB/D)'),
+            bhp_psi: z.number().describe('Bottom-hole pressure (psi)'),
+          }),
+        ).describe('IPR curve data points (rate vs BHP)'),
+        vlp_cases: z.array(
+          z.object({
+            label: z.string().describe('VLP case label (e.g., "3.5 in tubing")'),
+            curve: z.array(
+              z.object({
+                rate_stb_d: z.number().describe('Production rate (STB/D)'),
+                bhp_psi: z.number().describe('Bottom-hole pressure (psi)'),
+              }),
+            ).describe('VLP curve data points'),
+            operating_point: z.object({
+              rate_stb_d: z.number().describe('Operating rate (STB/D)'),
+              bhp_psi: z.number().describe('Operating BHP (psi)'),
+            }).optional().describe('Pre-computed operating point (VLP/IPR intersection). If omitted, computed client-side.'),
+          }),
+        ).describe('Array of VLP cases (e.g., different tubing sizes)'),
+      },
+      _meta: {
+        ui: { resourceUri: nodalChartUri },
+      },
+    },
+    async ({ well_name, date, reservoir_pressure_psi, ipr, vlp_cases }): Promise<CallToolResult> => {
+      const opPoints = vlp_cases
+        .filter((v) => v.operating_point)
+        .map((v) => `${v.label}: ${Math.round(v.operating_point!.rate_stb_d)} STB/D`);
+      const opDesc = opPoints.length > 0 ? `, operating: ${opPoints.join('; ')}` : '';
+      const summary = `Nodal analysis: ${well_name}${date ? ` (${date})` : ''}, IPR ${ipr.length} pts, ${vlp_cases.length} VLP case(s): ${vlp_cases.map((v) => v.label).join(', ')}${opDesc}`;
+
+      return {
+        content: [{ type: 'text', text: summary }],
+        structuredContent: { well_name, date, reservoir_pressure_psi, ipr, vlp_cases },
+      };
+    },
+  );
+
+  registerAppResource(
+    server,
+    nodalChartUri,
+    nodalChartUri,
+    { mimeType: RESOURCE_MIME_TYPE },
+    async (): Promise<ReadResourceResult> => {
+      const html = await readViewHtml('nodal-chart.html');
+      return {
+        contents: [{ uri: nodalChartUri, mimeType: RESOURCE_MIME_TYPE, text: html }],
       };
     },
   );

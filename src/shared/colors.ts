@@ -56,6 +56,27 @@ export const FP_CHART_COLORS_BASE = [
   '#001F45', '#3D4F5F', '#3D8B7A', '#553D8C', '#A3192B', '#6AAD4E',
 ];
 
+// === PVT property colors (maps each fluid property to a brand accent) ===
+export const PVT_PROPERTY_COLORS = {
+  bo: FP_NAVY,
+  rs: FP_TEAL,
+  bg: FP_STEEL,
+  oil_viscosity: FP_PURPLE,
+  gas_viscosity: FP_CRIMSON,
+  z_factor: FP_GREEN,
+  oil_density: FP_DARK_SLATE,
+  gas_density: '#6B818C', // Slate mid-tone
+} as const;
+
+// === DCA scenario colors (probabilistic forecasts and type curves) ===
+export const SCENARIO_COLORS = {
+  p90: FP_GREEN,
+  p50: FP_NAVY,
+  p10: FP_CRIMSON,
+  best_fit: FP_STEEL,
+  type_curve: FP_PURPLE,
+} as const;
+
 // === ECharts theme object ===
 export const FP_ECHARTS_THEME = {
   color: FP_CHART_COLORS,
