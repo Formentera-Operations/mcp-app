@@ -3,6 +3,7 @@ import { TabBar } from './TabBar';
 import type { TabId } from './TabBar';
 import type { WellData, ProductionData, LOEData, LeaseData } from '../dashboard-app';
 import { MapTab } from './MapTab';
+import { ProductionTab } from './ProductionTab';
 
 interface DashboardProps {
   wells: WellData[];
@@ -45,14 +46,7 @@ export function Dashboard({ wells, production, loe, leases, activeTab: initialTa
         )}
 
         {activeTab === 'production' && (
-          <div style={styles.tabContent}>
-            <h2 style={styles.tabTitle}>Production Surveillance</h2>
-            <p style={styles.placeholder}>
-              Production data: {production.length} records
-              <br />
-              <small style={styles.small}>(Charts coming in Phase 3)</small>
-            </p>
-          </div>
+          <ProductionTab production={production} />
         )}
 
         {activeTab === 'financial' && (
