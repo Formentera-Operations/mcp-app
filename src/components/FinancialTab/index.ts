@@ -1,0 +1,1 @@
+export { FinancialTab } from './FinancialTab';

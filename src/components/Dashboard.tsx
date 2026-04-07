@@ -4,6 +4,7 @@ import type { TabId } from './TabBar';
 import type { WellData, ProductionData, LOEData, LeaseData } from '../dashboard-app';
 import { MapTab } from './MapTab';
 import { ProductionTab } from './ProductionTab';
+import { FinancialTab } from './FinancialTab';
 
 interface DashboardProps {
   wells: WellData[];
@@ -50,14 +51,7 @@ export function Dashboard({ wells, production, loe, leases, activeTab: initialTa
         )}
 
         {activeTab === 'financial' && (
-          <div style={styles.tabContent}>
-            <h2 style={styles.tabTitle}>Financial Analysis</h2>
-            <p style={styles.placeholder}>
-              LOE data: {loe.length} records
-              <br />
-              <small style={styles.small}>(Charts coming in Phase 4)</small>
-            </p>
-          </div>
+          <FinancialTab loe={loe} />
         )}
 
         {activeTab === 'leases' && (
