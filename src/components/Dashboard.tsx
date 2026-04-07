@@ -5,6 +5,7 @@ import type { WellData, ProductionData, LOEData, LeaseData } from '../dashboard-
 import { MapTab } from './MapTab';
 import { ProductionTab } from './ProductionTab';
 import { FinancialTab } from './FinancialTab';
+import { LeasesTab } from './LeasesTab';
 
 interface DashboardProps {
   wells: WellData[];
@@ -55,14 +56,7 @@ export function Dashboard({ wells, production, loe, leases, activeTab: initialTa
         )}
 
         {activeTab === 'leases' && (
-          <div style={styles.tabContent}>
-            <h2 style={styles.tabTitle}>Lease Analysis</h2>
-            <p style={styles.placeholder}>
-              Lease data: {leases.length} leases
-              <br />
-              <small style={styles.small}>(Tables coming in Phase 5)</small>
-            </p>
-          </div>
+          <LeasesTab leases={leases} />
         )}
       </main>
     </div>
