@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { TabBar } from './TabBar';
 import type { TabId } from './TabBar';
 import type { WellData, ProductionData, LOEData, LeaseData } from '../dashboard-app';
+import { MapTab } from './MapTab';
 
 interface DashboardProps {
   wells: WellData[];
@@ -40,14 +41,7 @@ export function Dashboard({ wells, production, loe, leases, activeTab: initialTa
       {/* Tab content */}
       <main style={styles.content}>
         {activeTab === 'map' && (
-          <div style={styles.tabContent}>
-            <h2 style={styles.tabTitle}>Well Map</h2>
-            <p style={styles.placeholder}>
-              Map view with {wells.length} wells
-              <br />
-              <small style={styles.small}>(MapLibre integration coming in Phase 2)</small>
-            </p>
-          </div>
+          <MapTab wells={wells} />
         )}
 
         {activeTab === 'production' && (
@@ -129,8 +123,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   content: {
     flex: 1,
-    overflow: 'auto',
-    padding: '20px',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
   },
   tabContent: {
     backgroundColor: FP_COLORS.white,
