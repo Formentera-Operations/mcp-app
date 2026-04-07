@@ -542,5 +542,94 @@ export function createServer(): McpServer {
     },
   );
 
+  // ─── render-ops-dashboard ─────────────────────────────────────
+
+  const opsDashboardUri = 'ui://ops-dashboard/mcp-app.html';
+
+  registerAppTool(
+    server,
+    'render-ops-dashboard',
+    {
+      title: 'Operations Intelligence Dashboard',
+      description:
+        'Render a tabbed operations intelligence dashboard with Map, Production, Financial, and Leases views. Pass optional datasets for each tab. The dashboard integrates well mapping, production surveillance, LOE analysis, and lease tracking in a single interface.',
+      inputSchema: {
+        wells: z.array(
+          z.object({
+            well_name: z.string().describe('Well identifier'),
+            lat: z.number().describe('Latitude'),
+            lng: z.number().describe('Longitude'),
+            status: z.string().optional().describe('Well status (e.g., Producing, Shut-in, P&A)'),
+            oil_rate: z.number().optional().describe('Current oil rate BBL/D'),
+            gas_rate: z.number().optional().describe('Current gas rate MCF/D'),
+            water_rate: z.number().optional().describe('Current water rate BBL/D'),
+            loe_per_boe: z.number().optional().describe('LOE per BOE'),
+            field: z.string().optional().describe('Field name'),
+            basin: z.string().optional().describe('Basin name'),
+          }),
+        ).optional().describe('Array of well locations for Map tab'),
+        production: z.array(
+          z.object({
+            date: z.string().describe('ISO date string (YYYY-MM-DD)'),
+            oil_bbl: z.number().describe('Oil production in BBL/D'),
+            gas_mcf: z.number().describe('Gas production in MCF/D'),
+            water_bbl: z.number().optional().describe('Water production in BBL/D'),
+            well_name: z.string().optional().describe('Well identifier'),
+            boe: z.number().optional().describe('Barrel of oil equivalent'),
+            is_forecast: z.boolean().optional().describe('True if forecast'),
+          }),
+        ).optional().describe('Array of production records for Production tab'),
+        loe: z.array(
+          z.object({
+            period: z.string().describe('Period label (e.g., "Jan 2025")'),
+            category: z.string().describe('LOE category (e.g., "Workover", "Chemicals")'),
+            line_item: z.string().describe('Line item description'),
+            amount: z.number().describe('Amount in dollars'),
+          }),
+        ).optional().describe('Array of LOE records for Financial tab'),
+        leases: z.array(
+          z.object({
+            lease_name: z.string().describe('Lease identifier'),
+            operator: z.string().optional().describe('Operator name'),
+            expiration_date: z.string().optional().describe('Lease expiration date'),
+            basin: z.string().optional().describe('Basin name'),
+            field: z.string().optional().describe('Field name'),
+          }),
+        ).optional().describe('Array of lease records for Leases tab'),
+        activeTab: z.enum(['map', 'production', 'financial', 'leases']).optional().describe('Initial active tab'),
+      },
+      _meta: {
+        ui: { resourceUri: opsDashboardUri },
+      },
+    },
+    async ({ wells, production, loe, leases, activeTab }): Promise<CallToolResult> => {
+      const wellCount = wells?.length ?? 0;
+      const prodCount = production?.length ?? 0;
+      const loeCount = loe?.length ?? 0;
+      const leaseCount = leases?.length ?? 0;
+      const tab = activeTab ?? 'map';
+
+      const summary = `Operations dashboard: ${wellCount} wells, ${prodCount} production records, ${loeCount} LOE records, ${leaseCount} leases. Active tab: ${tab}`;
+
+      return {
+        content: [{ type: 'text', text: summary }],
+        structuredContent: { wells, production, loe, leases, activeTab: tab },
+      };
+    },
+  );
+
+  registerAppResource(
+    server,
+    opsDashboardUri,
+    opsDashboardUri,
+    { mimeType: RESOURCE_MIME_TYPE },
+    async (): Promise<ReadResourceResult> => {
+      const html = await readViewHtml('ops-dashboard.html');
+      return {
+        contents: [{ uri: opsDashboardUri, mimeType: RESOURCE_MIME_TYPE, text: html }],
+      };
+    },
+  );
+
   return server;
 }
