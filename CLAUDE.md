@@ -4,7 +4,7 @@
 
 A companion MCP server that provides interactive visualization tools (charts, maps, dashboards) for Formentera Operations data. It renders rich HTML UIs inline in Claude conversations using the [MCP Apps extension](https://modelcontextprotocol.io/extensions/apps/overview).
 
-This server does NOT query data itself. It accepts structured data (typically from the Snowlake MCP (sql_exec_tool) or the Whitson MCP) and renders it. Claude orchestrates between the data MCP and this viz MCP.
+This server does NOT query data itself. It accepts structured data (typically from the Snowlake MCP (sic — the connector's actual live name; sql_exec_tool) or the Whitson MCP) and renders it. Claude orchestrates between the data MCP and this viz MCP.
 
 Repo: https://github.com/Formentera-Operations/mcp-app.git
 
@@ -139,7 +139,7 @@ Input schemas live in server.ts — read the registerAppTool block before changi
 ### CSP exceptions
 
 - `show-well-map` declares `_meta.ui.csp: { connectDomains: ["https://tile.openstreetmap.org", "https://tiles.openfreemap.org", "https://demotiles.maplibre.org"] }` for raster tiles.
-- All other tools (including `render-ops-dashboard`) declare no CSP — their views are fully bundled.
+- All other tools declare no CSP — their views are fully bundled. Exception: `render-ops-dashboard`'s Map tab loads OSM raster tiles but has no `connectDomains` declaration; map tiles may fail in Claude Desktop (open issue — not yet fixed).
 
 ### Map sandbox workarounds (well map + dashboard Map tab)
 
