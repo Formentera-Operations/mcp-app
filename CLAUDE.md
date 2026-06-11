@@ -4,7 +4,7 @@
 
 A companion MCP server that provides interactive visualization tools (charts, maps, dashboards) for Formentera Operations data. It renders rich HTML UIs inline in Claude conversations using the [MCP Apps extension](https://modelcontextprotocol.io/extensions/apps/overview).
 
-This server does NOT query data itself. It accepts structured data (typically from the Snowflake MCP or Wise Rock MCP) and renders it. Claude orchestrates between the data MCP and this viz MCP.
+This server does NOT query data itself. It accepts structured data (typically from the Snowlake MCP (sic — the connector's actual live name; sql_exec_tool) or the Whitson MCP) and renders it. Claude orchestrates between the data MCP and this viz MCP.
 
 Repo: https://github.com/Formentera-Operations/mcp-app.git
 
@@ -15,7 +15,7 @@ Repo: https://github.com/Formentera-Operations/mcp-app.git
 - **MCP SDK**: `@modelcontextprotocol/sdk` + `@modelcontextprotocol/ext-apps`
 - **Build**: Vite + `vite-plugin-singlefile` bundles each view into a single self-contained HTML file
 - **Pattern**: Each tool registers with `registerAppTool` + `registerAppResource`, linked by a `ui://` resource URI
-- **Frontend**: Vanilla JS (no React) -- ECharts and MapLibre are imperative APIs; a framework adds overhead with zero benefit
+- **Frontend**: Vanilla JS for the single-purpose views -- ECharts and MapLibre are imperative APIs; a framework adds overhead with zero benefit. Exception: the tabbed ops dashboard (`src/dashboard-app.tsx` + `src/components/`) uses React 19
 
 ## Library choices (DO NOT CHANGE without discussion)
 
@@ -26,39 +26,13 @@ Repo: https://github.com/Formentera-Operations/mcp-app.git
 | Map tiles | **OSM raster tiles** (`tile.openstreetmap.org`) | Inline style with raster source — no remote style JSON fetch needed. Gray background fallback if tiles blocked by CSP. |
 | Bundling | **vite-plugin-singlefile** | Inlines all JS/CSS into one HTML file so the MCP resource is a single string. MapLibre bundled via npm (not CDN — CDN blocked in sandbox). |
 
-## Brand system (from fp-brand-2026)
+## Brand system
 
-All views MUST use the official Formentera Partners brand. Source of truth: `fp-brand-2026.skill`.
+All views MUST use the official Formentera Partners brand.
 
-### CSS custom properties (define in every view)
+**Source of truth: `src/shared/colors.ts` + `src/shared/theme.ts` — import, never re-declare.** This covers the brand color constants, `FP_CHART_COLORS` / `FP_CHART_COLORS_BASE`, the per-domain color maps (commodity, status, functional, PVT, scenarios), and the brand ECharts theme object.
 
-```css
-:root {
-  /* Theme accent colors */
-  --fp-navy: #001F45;
-  --fp-dark-slate: #3D4F5F;
-  --fp-teal: #3D8B7A;
-  --fp-purple: #553D8C;
-  --fp-crimson: #A3192B;
-  --fp-green: #6AAD4E;
-  --fp-steel: #336699;
-
-  /* Neutrals */
-  --fp-black: #000000;
-  --fp-white: #FFFFFF;
-  --fp-light-gray: #E6E6E6;
-  --fp-gray: #7F7F7F;
-  --fp-off-white: #F2F2F2;
-
-  /* Functional (indicators only -- never decorative) */
-  --fp-positive: #00B050;
-  --fp-negative: #C00000;
-  --fp-caution: #FFC000;
-
-  /* Typography */
-  --fp-font: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
-}
-```
+The tables below are domain facts (what each color MEANS), kept here so chart semantics are reviewable without reading code. The hex values themselves live in `src/shared/colors.ts`.
 
 ### Commodity colors (override chart order when showing oil/gas/NGL/water)
 
@@ -71,22 +45,9 @@ All views MUST use the official Formentera Partners brand. Source of truth: `fp-
 | BOE | `#FFC000` | Caution Yellow -- amber, used only as aggregate indicator |
 | Forecast | `#553D8C` | Brand Purple, dashed lines |
 
-### Chart color order (1-18, for multi-series / non-commodity charts)
+### Chart color order (multi-series / non-commodity charts)
 
-Use this when the chart is NOT distinguishing commodity streams (e.g., multi-well comparison, LOE categories, entity breakdown):
-
-```javascript
-const FP_CHART_COLORS = [
-  '#001F45', '#336699', '#94C1FA',  // Navy family
-  '#3D4F5F', '#6B818C', '#A3B4BC',  // Slate family
-  '#3D8B7A', '#8EBBB3', '#B6D3CE',  // Teal family
-  '#553D8C', '#978CB5', '#BCB5CF',  // Purple family
-  '#A3192B', '#BF5E6B', '#D698A0',  // Crimson family
-  '#6AAD4E', '#93C87A', '#B9DEA5',  // Green family
-];
-```
-
-For <=6 series, use base colors only: positions 1, 4, 7, 10, 13, 16.
+When the chart is NOT distinguishing commodity streams (e.g., multi-well comparison, LOE categories, entity breakdown), use `FP_CHART_COLORS` from `src/shared/colors.ts` (18 colors, 6 brand families x 3 shades). For <=6 series, use `FP_CHART_COLORS_BASE` (the 6 base family colors).
 
 ### Well status colors (mapped to brand palette)
 
@@ -119,20 +80,7 @@ For <=6 series, use base colors only: positions 1, 4, 7, 10, 13, 16.
 
 ### ECharts theme object
 
-Register a custom ECharts theme that matches the brand:
-
-```javascript
-const FP_ECHARTS_THEME = {
-  color: FP_CHART_COLORS,
-  backgroundColor: '#FFFFFF',
-  textStyle: { fontFamily: 'Arial, Helvetica Neue, Helvetica, sans-serif', color: '#001F45' },
-  title: { textStyle: { color: '#001F45', fontWeight: 'bold' }, subtextStyle: { color: '#336699' } },
-  legend: { textStyle: { color: '#7F7F7F', fontSize: 12 } },
-  categoryAxis: { axisLine: { lineStyle: { color: '#E6E6E6' } }, axisLabel: { color: '#7F7F7F' }, splitLine: { lineStyle: { color: '#E6E6E6' } } },
-  valueAxis: { axisLine: { lineStyle: { color: '#E6E6E6' } }, axisLabel: { color: '#7F7F7F' }, splitLine: { lineStyle: { color: '#E6E6E6' } } },
-  dataZoom: { backgroundColor: '#F2F2F2', fillerColor: 'rgba(0,31,69,0.1)', handleColor: '#336699' },
-};
-```
+The brand ECharts theme is registered by `src/shared/theme.ts` — import it, never re-declare a theme object in a view.
 
 ## View behavior (all tools)
 
@@ -172,113 +120,45 @@ When the user interacts with a view (zooms to a date range, clicks a well, appli
 
 ## Tools
 
-### 1. `visualize-production` -- Time-series production chart
-- **Resource**: `ui://production-chart/mcp-app.html`
-- **Input**: JSON array of `{ date, oil_bbl, gas_mcf, water_bbl, well_name, ?boe, ?is_forecast }`
-- **Features**: Dual Y-axis (BBL/D left, MCF/D right), DataZoom slider, log scale toggle, stream visibility toggles, KPI strip, forecast overlay (dashed), multi-well aggregation, cumulative mode, stacked area mode
-- **Colors**: Uses commodity colors (Oil=#00B050, Gas=#FF0000, Water=#336699, BOE=#FFC000). For multi-well single-stream, uses FP_CHART_COLORS order
-- **Streaming**: `ontoolinputpartial` renders chart incrementally as rows arrive
-- **Context**: On DataZoom change, `updateModelContext` with visible date range and well names
-- **CSP**: None needed (fully bundled)
+Nine tools, each backed by a `ui://<view>/mcp-app.html` resource (one per `views/*.html` file).
 
-### 2. `show-well-map` -- Geospatial well map
-- **Resource**: `ui://well-map/mcp-app.html`
-- **Input**: `{ data: [{ well_name, lat, lng, ?status, ?oil_rate, ?gas_rate, ?water_rate, ?loe_per_boe, ?field, ?basin }] }`
-- **Features**: DOM-based `maplibregl.Marker` elements (not WebGL layers — sandbox blocks WebGL rendering), popups with well detail via `setDOMContent` (XSS-safe), auto-fit bounds, navigation controls, status-colored markers
-- **Colors**: Status uses well status color map. Fallback: gray for unknown status
-- **Streaming**: `ontoolinputpartial` renders wells incrementally (fitBounds skipped during streaming to prevent jank); map init gated behind `map.on('load')`
-- **CSP**: `_meta.ui.csp: { connectDomains: ["https://tile.openstreetmap.org", "https://tiles.openfreemap.org", "https://demotiles.maplibre.org"] }`
-- **Bundling**: MapLibre GL JS bundled via npm import (CDN script tags blocked in sandbox). Inline `StyleSpecification` with OSM raster tiles (remote style JSON fetch also blocked).
+Input schemas live in server.ts — read the registerAppTool block before changing any input contract.
 
-### 3. `visualize-variance` -- Waterfall chart
-- **Resource**: `ui://variance-waterfall/mcp-app.html`
-- **Input**: `{ base_boe, current_boe, period_label, components: [{ category, delta_boe }] }`
-- **Features**: 3-series stacked bar waterfall (invisible base + positive + negative), sorted by absolute magnitude, signed labels, KPI strip with delta
-- **Colors**: Positive=#00B050, Negative=#C00000, Totals=#001F45 (brand functional colors)
-- **Streaming**: `ontoolinputpartial` renders chart incrementally
-- **CSP**: None needed (fully bundled)
+| Tool | Purpose | Special notes |
+|------|---------|---------------|
+| `visualize-production` | Time-series production chart: dual Y-axis (BBL/D / MCF/D), DataZoom, log scale, KPI strip, forecast overlay, multi-well aggregation, cumulative + stacked modes | Commodity colors; multi-well single-stream uses `FP_CHART_COLORS`. On DataZoom change, `updateModelContext` reports visible date range + wells |
+| `visualize-variance` | Waterfall of BOE variance components (invisible-base 3-series stacked bar), sorted by magnitude, KPI delta strip | Functional colors: positive / negative deltas, Navy totals |
+| `show-data-table` | Sortable, filterable data table with conditional formatting and sticky headers | Sorting/filtering disabled until streamed data finalizes |
+| `show-los-table` | Lease Operating Statement: auto-groups flat GL rows by category/line_item, computes subtotals + NOI, collapsible categories | Sign conventions: raw GL signs in, revenue/income flipped positive for display. Legacy nested `sections` format also supported |
+| `visualize-decline` | Decline curve analysis: Arps (exp/hyp/harmonic), auto-fit, P10/P50/P90 scenarios + confidence band, type curve overlay, per-scenario EUR | Whitson mappings: `whitson_dca.get_saved_cases_bulk` (scenarios), `whitson_dca.get_monthly_rates` (pre-computed rates), `whitson_type_wells.get_saved_cases` (type curve) |
+| `visualize-pvt` | PVT property curves vs pressure: auto-detects populated properties, bubble point marker, dual Y-axis | Whitson mappings: `whitson_pvt.get_calcs`, `whitson_pvt.get_bot_table`. Uses `PVT_PROPERTY_COLORS` |
+| `visualize-nodal` | Nodal analysis: IPR + multiple VLP curves, operating point markers, reservoir pressure line | Whitson mappings: `whitson_nodal_vlp.get_ipr`, `whitson_nodal_vlp.get_vlp_cases` + `run_vlp`. Computes VLP/IPR intersection client-side if `operating_point` not provided |
+| `show-well-map` | Geospatial well map: status-colored markers, popups, auto-fit bounds | Only tool with a CSP exception (see below); all MapLibre sandbox workarounds apply |
+| `render-ops-dashboard` | Tabbed operations dashboard: Map / Production / Financial (LOE) / Leases tabs; all datasets optional; `activeTab` picks initial tab | React-based (`src/dashboard-app.tsx` + `src/components/`), unlike the vanilla-JS views |
 
-### 4. `visualize-decline` -- Decline curve analysis
-- **Resource**: `ui://decline-curve/mcp-app.html`
-- **Input**: `{ well_name, actual: [{ date, oil_bbl }], ?forecast: { method, ip, di, b, months } | { fit: true, months } | { rates: [{ date, oil_bbl }], ?label }, ?scenarios: [{ label, rates, ?eur_bbl, ?params }], ?type_curve: { label, rates: [{ month, oil_bbl }] } }`
-- **Features**: Scatter (actual) + Arps decline line (exponential/hyperbolic/harmonic), auto-fit mode, pre-computed forecast rates (from Whitson DCA), multi-scenario overlay (P10/P50/P90), confidence band between P10/P90, type curve overlay aligned from first production month, per-scenario EUR in KPIs, log Y-axis default, DataZoom slider
-- **Colors**: Actual=Navy scatter, Forecast=Purple dashed, P90=Green, P50=Navy bold, P10=Crimson, Band=Navy @10% opacity, Type curve=Purple long-dash
-- **Whitson integration**: Accepts output from `whitson_dca.get_saved_cases_bulk` (scenarios), `whitson_dca.get_monthly_rates` (pre-computed rates), `whitson_type_wells.get_saved_cases` (type curve)
-- **CSP**: None needed (fully bundled)
+### CSP exceptions
 
-### 5. `show-data-table` -- Sortable data table
-- **Resource**: `ui://data-table/mcp-app.html`
-- **Input**: `{ title, columns: [{ key, label, type: "string"|"number"|"currency"|"date"|"percent" }], rows: [{}], ?sort_by, ?highlight_rules: [{ column, condition, color, ?threshold }] }`
-- **Features**: Column sorting, text filter, conditional formatting (positive/negative/gt/lt), sticky headers, number formatting
-- **Colors**: Header=Navy bg/white text, rows=alternating white/#F2F2F2, positive=#00B050, negative=#C00000
-- **Streaming**: `ontoolinputpartial` renders rows progressively; sorting/filtering disabled until data finalized
-- **CSP**: None needed (fully bundled)
+- `show-well-map` declares `_meta.ui.csp: { connectDomains: ["https://tile.openstreetmap.org", "https://tiles.openfreemap.org", "https://demotiles.maplibre.org"] }` for raster tiles.
+- All other tools declare no CSP — their views are fully bundled. Exception: `render-ops-dashboard`'s Map tab loads OSM raster tiles but has no `connectDomains` declaration; map tiles may fail in Claude Desktop (open issue — not yet fixed).
 
-### 6. `show-los-table` -- Lease Operating Statement
-- **Resource**: `ui://los-table/mcp-app.html`
-- **Input**: `{ title, ?entity, data: [{ period, category, line_item, amount }], ?category_order, ?grand_total_label }`
-- **Features**: Accepts flat row data (close to SQL output) — view auto-groups by category/line_item, computes subtotals and NOI. Collapsible category rows, monthly columns + computed total column, sign convention handling (revenue/income flipped to positive, expenses kept positive). Also supports legacy nested `sections` format.
-- **Sign conventions**: Raw GL signs (revenue as negative credits, expenses as positive debits). View flips revenue/income to positive for display. NOI computed automatically.
-- **Default category order**: Revenue, Production & Ad Valorem Taxes, Lease Operating Expenses, G&A, Workover Expenses, P & A Expenses, Other Income
-- **Colors**: Category rows=Off-white, subtotals=Navy top-border, grand total=Navy bg/white text, negatives=#C00000
-- **CSP**: None needed (fully bundled)
+### Map sandbox workarounds (well map + dashboard Map tab)
 
-### 7. `visualize-pvt` -- PVT property curves
-- **Resource**: `ui://pvt-chart/mcp-app.html`
-- **Input**: `{ well_name, ?bubble_point_psi, properties: [{ pressure_psi, ?bo, ?bg, ?rs, ?oil_viscosity_cp, ?gas_viscosity_cp, ?oil_density, ?gas_density, ?z_factor }] }`
-- **Features**: Multi-Y-axis line chart (pressure on X-axis), auto-detects which properties have data, bubble point vertical marker (dashed amber), property toggles via legend, dual Y-axis (FVF left, GOR right), KPI strip with Bo/Rs at Pb, DataZoom slider
-- **Colors**: Bo=Navy, Rs=Teal, Bg=Steel, μo=Purple, μg=Crimson, Z=Green (PVT_PROPERTY_COLORS)
-- **Whitson integration**: Accepts output from `whitson_pvt.get_calcs`, `whitson_pvt.get_bot_table`
-- **CSP**: None needed (fully bundled)
-
-### 8. `visualize-nodal` -- Nodal analysis (VLP/IPR)
-- **Resource**: `ui://nodal-chart/mcp-app.html`
-- **Input**: `{ well_name, ?date, ?reservoir_pressure_psi, ipr: [{ rate_stb_d, bhp_psi }], vlp_cases: [{ label, curve: [{ rate_stb_d, bhp_psi }], ?operating_point: { rate_stb_d, bhp_psi } }] }`
-- **Features**: IPR curve (Navy bold) + multiple VLP curves (FP_CHART_COLORS_BASE cycling), operating point markers (green dots at VLP/IPR intersection), reservoir pressure horizontal marker, client-side intersection computation if operating_point not provided, KPI strip with operating rate and flowing BHP
-- **Colors**: IPR=Navy bold, VLP cases=FP_CHART_COLORS_BASE, Operating points=Positive green, Pr line=Gray dashed
-- **Whitson integration**: Accepts output from `whitson_nodal_vlp.get_ipr`, `whitson_nodal_vlp.get_vlp_cases` + `run_vlp`
-- **CSP**: None needed (fully bundled)
+- DOM-based `maplibregl.Marker` elements, NOT WebGL layers — the sandbox blocks WebGL rendering.
+- Popups built via `setDOMContent` (XSS-safe).
+- MapLibre GL JS bundled via npm import (CDN script tags blocked in sandbox); inline `StyleSpecification` with OSM raster tiles (remote style JSON fetch also blocked).
+- Streaming: `ontoolinputpartial` renders wells incrementally; `fitBounds` skipped during streaming to prevent jank; map init gated behind `map.on('load')`.
 
 ## Project structure
 
-```
-mcp-app/
-├── CLAUDE.md              <- You are here
-├── package.json
-├── tsconfig.json           <- IDE / type-checking (noEmit)
-├── tsconfig.server.json    <- Server compilation (NodeNext)
-├── vite.config.ts          <- Fallback single-view config
-├── build-views.mjs         <- Builds all view HTML files via Vite
-├── server.ts               <- Tool + resource registration
-├── main.ts                 <- Entry point (stdio / HTTP)
-├── src/
-│   ├── shared/
-│   │   ├── theme.ts        <- Host theming + FP brand ECharts theme registration
-│   │   ├── colors.ts       <- All brand color constants (FP_CHART_COLORS, commodity, status, functional, PVT, scenarios)
-│   │   ├── lifecycle.ts    <- Common App init, IntersectionObserver, fullscreen
-│   │   ├── format.ts       <- Number/date formatting (commas, BBL/D, MCF/D, psi, mD)
-│   │   ├── security.ts     <- escapeHtml utility (XSS prevention)
-│   │   ├── decline-math.ts <- Arps decline curve formulas + auto-fit
-│   │   └── reservoir-math.ts <- Curve intersection (VLP/IPR operating point)
-│   ├── production-chart.ts <- ECharts production UI logic
-│   ├── well-map.ts         <- MapLibre well map UI logic
-│   ├── variance-waterfall.ts <- ECharts waterfall UI logic
-│   ├── decline-curve.ts    <- ECharts decline curve + scenarios + type curve UI logic
-│   ├── data-table.ts       <- Sortable data table UI logic
-│   ├── los-table.ts        <- Hierarchical LOS financial table UI logic
-│   ├── pvt-chart.ts        <- ECharts PVT property curves UI logic
-│   └── nodal-chart.ts      <- ECharts nodal analysis (VLP/IPR) UI logic
-├── views/
-│   ├── production-chart.html
-│   ├── well-map.html
-│   ├── variance-waterfall.html
-│   ├── decline-curve.html
-│   ├── data-table.html
-│   ├── los-table.html
-│   ├── pvt-chart.html
-│   └── nodal-chart.html
-└── dist/                   <- Built output (gitignored)
-```
+Key locations (not exhaustive — `ls` for the rest):
+
+- `server.ts` — tool + resource registration (all 9 tools); `main.ts` — entry point (stdio / HTTP)
+- `build-views.mjs` — builds every `views/*.html` via Vite + vite-plugin-singlefile; `dist/` is gitignored build output
+- `tsconfig.json` (IDE / noEmit) vs `tsconfig.server.json` (NodeNext server compilation)
+- `src/shared/` — cross-view modules: `colors.ts` (all brand color constants), `theme.ts` (host theming + FP brand ECharts theme registration), `lifecycle.ts` (App init, IntersectionObserver, fullscreen), `format.ts`, `security.ts` (escapeHtml), `decline-math.ts` (Arps), `reservoir-math.ts` (VLP/IPR intersection)
+- `src/<view>.ts` — one vanilla-JS UI module per view: production-chart, well-map, variance-waterfall, decline-curve, data-table, los-table, pvt-chart, nodal-chart
+- `src/dashboard-app.tsx` + `src/components/` — React ops dashboard (Dashboard, TabBar, MapTab, ProductionTab, FinancialTab, LeasesTab)
+- `views/` — one HTML shell per view (the eight above plus `ops-dashboard.html`)
 
 ## Build & run
 
